@@ -4,12 +4,16 @@ import { TaskRouter } from '../tasks/router';
 import { GovernanceEngine } from '../governance/engine';
 import { ProfitDistributor } from '../governance/profit-distributor';
 import { KnowledgeBase } from '../memory/knowledge-base';
+import { Ledger } from '../finance/ledger';
+import { FinancialReporter } from '../finance/reporter';
 
 const prisma = new PrismaClient();
 const router = new TaskRouter();
 const governance = new GovernanceEngine();
 const profitDistributor = new ProfitDistributor();
 const knowledgeBase = new KnowledgeBase();
+const ledger = new Ledger();
+const reporter = new FinancialReporter();
 
 export function createApp(): express.Express {
   const app = express();
@@ -431,6 +435,157 @@ export function createApp(): express.Express {
       data: { paid: true, paidAt: new Date(), note: req.body.note },
     });
     res.json(item);
+  });
+
+  // ── Finance: Chart of Accounts ───────────────────────────────────────────────
+  app.get('/api/finance/accounts', async (_req, res) => {
+    const accounts = await prisma.account.findMany({
+      where: { isActive: true },
+      orderBy: { code: 'asc' },
+    });
+    res.json(accounts);
+  });
+
+  // ── Finance: Journal Entries ─────────────────────────────────────────────────
+  app.get('/api/finance/journals', async (req, res) => {
+    const { start, end } = req.query as Record<string, string>;
+    const journals = await prisma.journal.findMany({
+      where: {
+        status: 'posted',
+        ...(start || end ? {
+          date: {
+            ...(start && { gte: new Date(start) }),
+            ...(end && { lte: new Date(end) }),
+          },
+        } : {}),
+      },
+      include: { entries: { include: { account: { select: { code: true, name: true } } } } },
+      orderBy: { date: 'desc' },
+      take: 100,
+    });
+    res.json(journals);
+  });
+
+  // Post a manual journal entry
+  app.post('/api/finance/journals', async (req: Request, res: Response) => {
+    const { date, description, reference, currency, entries } = req.body;
+    try {
+      const journalId = await ledger.post({
+        date: date ? new Date(date) : undefined,
+        description,
+        reference,
+        currency,
+        entries,
+      });
+      const journal = await prisma.journal.findUnique({
+        where: { id: journalId },
+        include: { entries: { include: { account: true } } },
+      });
+      res.status(201).json(journal);
+    } catch (err) {
+      res.status(400).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  // Record income (shortcut — also creates journal entry)
+  app.post('/api/finance/income', async (req: Request, res: Response) => {
+    const { amountCents, revenueAccountCode, description, reference, currency } = req.body;
+    try {
+      const journalId = await ledger.recordIncome({
+        amountCents,
+        revenueAccountCode: revenueAccountCode || '4009',
+        description,
+        reference,
+        currency,
+      });
+      res.status(201).json({ journalId });
+    } catch (err) {
+      res.status(400).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  // Record expense (shortcut)
+  app.post('/api/finance/expenses', async (req: Request, res: Response) => {
+    const { amountCents, expenseAccountCode, description, reference, currency } = req.body;
+    try {
+      const journalId = await ledger.recordExpense({
+        amountCents,
+        expenseAccountCode: expenseAccountCode || '6090',
+        description,
+        reference,
+        currency,
+      });
+      res.status(201).json({ journalId });
+    } catch (err) {
+      res.status(400).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  // ── Finance: Reports ─────────────────────────────────────────────────────────
+  // Get previously generated reports
+  app.get('/api/finance/reports', async (req, res) => {
+    const { type } = req.query as Record<string, string>;
+    const reports = await prisma.financialReport.findMany({
+      where: type ? { type: type as 'income_statement' | 'balance_sheet' | 'cash_flow' | 'trial_balance' } : undefined,
+      orderBy: { generatedAt: 'desc' },
+      take: 20,
+      select: { id: true, type: true, periodStart: true, periodEnd: true, generatedAt: true, summary: true },
+    });
+    res.json(reports);
+  });
+
+  app.get('/api/finance/reports/:id', async (req, res) => {
+    const report = await prisma.financialReport.findUnique({ where: { id: req.params.id } });
+    if (!report) return res.status(404).json({ error: 'Report not found' });
+    res.json(report);
+  });
+
+  // Generate P&L
+  app.post('/api/finance/reports/income-statement', async (req: Request, res: Response) => {
+    const { periodStart, periodEnd } = req.body;
+    const start = periodStart ? new Date(periodStart) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const end = periodEnd ? new Date(periodEnd) : new Date();
+    try {
+      const report = await reporter.generateIncomeStatement(start, end);
+      res.json(report);
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  // Generate Balance Sheet
+  app.post('/api/finance/reports/balance-sheet', async (req: Request, res: Response) => {
+    const asOf = req.body.asOf ? new Date(req.body.asOf) : new Date();
+    try {
+      const report = await reporter.generateBalanceSheet(asOf);
+      res.json(report);
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  // Generate Cash Flow Statement
+  app.post('/api/finance/reports/cash-flow', async (req: Request, res: Response) => {
+    const { periodStart, periodEnd } = req.body;
+    const start = periodStart ? new Date(periodStart) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const end = periodEnd ? new Date(periodEnd) : new Date();
+    try {
+      const report = await reporter.generateCashFlow(start, end);
+      res.json(report);
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  // Generate Trial Balance
+  app.post('/api/finance/reports/trial-balance', async (req: Request, res: Response) => {
+    const asOf = req.body.asOf ? new Date(req.body.asOf) : new Date();
+    try {
+      const report = await reporter.generateTrialBalance(asOf);
+      res.json(report);
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
   });
 
   return app;

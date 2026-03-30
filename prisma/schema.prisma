@@ -394,3 +394,120 @@ model DistributionLineItem {
 
   @@index([distributionId])
 }
+
+// =========================================================
+// FINANCIAL ACCOUNTING (Double-Entry Bookkeeping)
+// =========================================================
+
+/**
+ * Chart of Accounts — defines all financial accounts.
+ * Uses standard accounting categories aligned with financial statements.
+ */
+
+enum AccountType {
+  asset          // Balance Sheet: what we own (cash, AR, equipment)
+  liability      // Balance Sheet: what we owe (AP, loans)
+  equity         // Balance Sheet: owner's stake (capital, retained earnings)
+  revenue        // P&L: income from operations
+  expense        // P&L: costs of operations
+  cogs           // P&L: cost of goods/services sold
+}
+
+model Account {
+  id          String      @id @default(uuid())
+  code        String      @unique  // e.g. "1001" (cash), "4001" (revenue)
+  name        String               // e.g. "現金", "銷售收入"
+  nameEn      String?              // English name
+  type        AccountType
+  currency    String      @default("TWD")
+  isActive    Boolean     @default(true)
+  description String?
+  entries     JournalEntry[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([type])
+  @@index([code])
+}
+
+/**
+ * Journal — each financial event. Uses double-entry: every transaction
+ * has equal debits and credits.
+ */
+
+enum JournalStatus {
+  draft
+  posted    // finalized, affects reports
+  voided    // cancelled, excluded from reports
+}
+
+model Journal {
+  id          String        @id @default(uuid())
+  date        DateTime      @default(now())
+  description String        @db.Text
+  reference   String?       // e.g. invoice number, receipt ID
+  status      JournalStatus @default(draft)
+  currency    String        @default("TWD")
+  // Link to source events
+  incomeEventId    String?
+  distributionId   String?
+  entries          JournalEntry[]
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([date])
+  @@index([status])
+}
+
+/**
+ * Journal Entry — one line in a journal (debit or credit).
+ * Debit: increases assets/expenses; decreases liabilities/equity/revenue.
+ * Credit: increases liabilities/equity/revenue; decreases assets/expenses.
+ */
+
+enum EntryType {
+  debit
+  credit
+}
+
+model JournalEntry {
+  id          String     @id @default(uuid())
+  journalId   String
+  journal     Journal    @relation(fields: [journalId], references: [id])
+  accountId   String
+  account     Account    @relation(fields: [accountId], references: [id])
+  type        EntryType
+  amountCents Int
+  memo        String?
+  createdAt   DateTime   @default(now())
+
+  @@index([journalId])
+  @@index([accountId])
+}
+
+/**
+ * FinancialReport — cached/generated financial statements.
+ * Regenerated on demand or on schedule.
+ */
+
+enum ReportType {
+  income_statement   // 損益表 P&L
+  balance_sheet      // 資產負債表
+  cash_flow          // 現金流量表
+  trial_balance      // 試算表
+}
+
+model FinancialReport {
+  id          String     @id @default(uuid())
+  type        ReportType
+  periodStart DateTime
+  periodEnd   DateTime
+  currency    String     @default("TWD")
+  // The report data as structured JSON
+  data        Json
+  summary     String?    @db.Text  // AI-generated narrative analysis
+  generatedAt DateTime   @default(now())
+
+  @@index([type])
+  @@index([periodStart])
+}
