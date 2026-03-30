@@ -1,9 +1,13 @@
 import express, { Request, Response, NextFunction } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { TaskRouter } from '../tasks/router';
+import { GovernanceEngine } from '../governance/engine';
+import { ProfitDistributor } from '../governance/profit-distributor';
 
 const prisma = new PrismaClient();
 const router = new TaskRouter();
+const governance = new GovernanceEngine();
+const profitDistributor = new ProfitDistributor();
 
 export function createApp(): express.Express {
   const app = express();
@@ -234,6 +238,124 @@ export function createApp(): express.Express {
   app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
     console.error('[API Error]', err);
     res.status(500).json({ error: err.message });
+  });
+
+  // ── Constitution ──────────────────────────────────────────────────────────────
+  app.get('/api/constitution', async (_req, res) => {
+    const c = await prisma.constitution.findFirst({
+      where: { isActive: true },
+      orderBy: { version: 'desc' },
+    });
+    res.json(c);
+  });
+
+  // ── Proposals ─────────────────────────────────────────────────────────────────
+  app.get('/api/proposals', async (req, res) => {
+    const status = req.query.status as string | undefined;
+    const proposals = await prisma.proposal.findMany({
+      where: status ? { status: status as 'open' | 'passed' | 'rejected' | 'executed' | 'expired' } : undefined,
+      include: { _count: { select: { votes: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(proposals);
+  });
+
+  app.post('/api/proposals', async (req: Request, res: Response) => {
+    const { type, title, description, payload, proposedByUserId, votingWindowHours } = req.body;
+
+    const constitution = await prisma.constitution.findFirst({
+      where: { isActive: true },
+      orderBy: { version: 'desc' },
+    });
+    if (!constitution) return res.status(400).json({ error: 'No active constitution' });
+
+    const proposal = await governance.createProposal({
+      constitutionId: constitution.id,
+      type,
+      title,
+      description,
+      payload,
+      proposedByUserId,
+      votingWindowHours,
+    });
+    res.status(201).json(proposal);
+  });
+
+  app.get('/api/proposals/:id', async (req, res) => {
+    const proposal = await prisma.proposal.findUnique({
+      where: { id: req.params.id },
+      include: { votes: true },
+    });
+    if (!proposal) return res.status(404).json({ error: 'Proposal not found' });
+    res.json(proposal);
+  });
+
+  app.post('/api/proposals/:id/vote', async (req: Request, res: Response) => {
+    const { choice, rationale, voterUserId, voterAgentId } = req.body;
+    try {
+      const vote = await governance.castVote({
+        proposalId: req.params.id,
+        voterUserId,
+        voterAgentId,
+        choice,
+        rationale,
+      });
+      res.status(201).json(vote);
+    } catch (err) {
+      res.status(400).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  // ── Income & Profit Distribution ──────────────────────────────────────────────
+  app.get('/api/income', async (_req, res) => {
+    const income = await prisma.incomeEvent.findMany({
+      orderBy: { recordedAt: 'desc' },
+      take: 50,
+    });
+    res.json(income);
+  });
+
+  app.post('/api/income', async (req: Request, res: Response) => {
+    const { source, description, amountCents, currency, boardMemberIds } = req.body;
+
+    const income = await prisma.incomeEvent.create({
+      data: {
+        source,
+        description,
+        amountCents,
+        currency: currency || 'TWD',
+        recordedAt: new Date(),
+      },
+    });
+
+    // Auto-distribute immediately
+    await profitDistributor.distribute({
+      incomeEventId: income.id,
+      boardMemberIds: boardMemberIds || [],
+    });
+
+    const updated = await prisma.incomeEvent.findUnique({
+      where: { id: income.id },
+      include: { distribution: { include: { lineItems: true } } },
+    });
+    res.status(201).json(updated);
+  });
+
+  app.get('/api/distributions', async (_req, res) => {
+    const dists = await prisma.distribution.findMany({
+      include: { lineItems: true },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+    res.json(dists);
+  });
+
+  app.patch('/api/distributions/:distId/line-items/:itemId/pay', async (req, res) => {
+    const item = await prisma.distributionLineItem.update({
+      where: { id: req.params.itemId },
+      data: { paid: true, paidAt: new Date(), note: req.body.note },
+    });
+    res.json(item);
   });
 
   return app;

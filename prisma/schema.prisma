@@ -268,3 +268,129 @@ model TaskSequence {
   id      String @id @default("singleton")
   nextNum Int    @default(1)
 }
+
+// =========================================================
+// GENESIS CONSTITUTION
+// =========================================================
+
+model Constitution {
+  id         String     @id @default(uuid())
+  version    Int        @default(1)
+  body       String     @db.Text
+  rules      Json       @default("{}")
+  isActive   Boolean    @default(true)
+  ratifiedAt DateTime?
+  proposals  Proposal[]
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+}
+
+// =========================================================
+// GOVERNANCE — PROPOSALS & VOTING
+// =========================================================
+
+enum ProposalStatus {
+  open
+  passed
+  rejected
+  executed
+  expired
+}
+
+enum ProposalType {
+  constitution_amendment
+  profit_distribution
+  agent_hire
+  agent_fire
+  budget_allocation
+  strategic_pivot
+  custom
+}
+
+model Proposal {
+  id                String         @id @default(uuid())
+  constitutionId    String
+  constitution      Constitution   @relation(fields: [constitutionId], references: [id])
+  type              ProposalType
+  title             String
+  description       String         @db.Text
+  payload           Json           @default("{}")
+  status            ProposalStatus @default(open)
+  proposedByAgentId String?
+  proposedByUserId  String?
+  votingDeadline    DateTime
+  quorumPercent     Int            @default(51)
+  passThreshold     Int            @default(51)
+  votes             Vote[]
+  executedAt        DateTime?
+  executionNote     String?        @db.Text
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@index([status])
+  @@index([type])
+}
+
+enum VoteChoice {
+  yes
+  no
+  abstain
+}
+
+model Vote {
+  id           String     @id @default(uuid())
+  proposalId   String
+  proposal     Proposal   @relation(fields: [proposalId], references: [id])
+  voterAgentId String?
+  voterUserId  String?
+  weight       Int        @default(1)
+  choice       VoteChoice
+  rationale    String?    @db.Text
+  createdAt    DateTime   @default(now())
+
+  @@unique([proposalId, voterAgentId])
+  @@unique([proposalId, voterUserId])
+  @@index([proposalId])
+}
+
+// =========================================================
+// PROFIT DISTRIBUTION
+// =========================================================
+
+model IncomeEvent {
+  id             String        @id @default(uuid())
+  source         String
+  description    String?       @db.Text
+  amountCents    Int
+  currency       String        @default("TWD")
+  distributionId String?       @unique
+  distribution   Distribution? @relation(fields: [distributionId], references: [id])
+  recordedAt     DateTime      @default(now())
+  createdAt      DateTime      @default(now())
+}
+
+model Distribution {
+  id             String                 @id @default(uuid())
+  totalCents     Int
+  currency       String                 @default("TWD")
+  rulesSnapshot  Json
+  lineItems      DistributionLineItem[]
+  incomeEvent    IncomeEvent?
+  executedAt     DateTime?
+  createdAt      DateTime               @default(now())
+}
+
+model DistributionLineItem {
+  id             String       @id @default(uuid())
+  distributionId String
+  distribution   Distribution @relation(fields: [distributionId], references: [id])
+  recipient      String
+  label          String
+  percent        Int
+  amountCents    Int
+  paid           Boolean      @default(false)
+  paidAt         DateTime?
+  note           String?
+
+  @@index([distributionId])
+}

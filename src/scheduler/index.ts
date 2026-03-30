@@ -2,11 +2,13 @@ import { CronJob } from 'cron';
 import { PrismaClient } from '@prisma/client';
 import { TaskRouter } from '../tasks/router';
 import { AutonomousLoop } from '../agents/autonomous-loop';
+import { GovernanceEngine } from '../governance/engine';
 import { notify } from '../telegram/bot';
 
 const prisma = new PrismaClient();
 const router = new TaskRouter();
 const autonomousLoop = new AutonomousLoop();
+const governanceEngine = new GovernanceEngine();
 
 /**
  * Scheduler — the heartbeat of the zero-dao.
@@ -20,6 +22,7 @@ const autonomousLoop = new AutonomousLoop();
 export class Scheduler {
   private autonomousLoopJob: CronJob;
   private taskRouterJob: CronJob;
+  private governanceTallyJob: CronJob;
   private stuckCheckJob: CronJob;
   private dailyDigestJob: CronJob;
 
@@ -32,6 +35,11 @@ export class Scheduler {
     // Route tasks every 5 minutes
     this.taskRouterJob = new CronJob('*/5 * * * *', () => {
       this.runTaskRouter().catch(console.error);
+    });
+
+    // Governance tally: check proposals every hour
+    this.governanceTallyJob = new CronJob('0 * * * *', () => {
+      governanceEngine.tallyAll().catch(console.error);
     });
 
     // Check for stuck tasks every 30 minutes
@@ -48,14 +56,16 @@ export class Scheduler {
   start(): void {
     this.autonomousLoopJob.start();
     this.taskRouterJob.start();
+    this.governanceTallyJob.start();
     this.stuckCheckJob.start();
     this.dailyDigestJob.start();
-    console.log('[Scheduler] Started. Task router: every 5min, Digest: 9am daily.');
+    console.log('[Scheduler] Started. Autonomous loop: 10min, Task router: 5min, Governance tally: hourly, Digest: 9am daily.');
   }
 
   stop(): void {
     this.autonomousLoopJob.stop();
     this.taskRouterJob.stop();
+    this.governanceTallyJob.stop();
     this.stuckCheckJob.stop();
     this.dailyDigestJob.stop();
   }

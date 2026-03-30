@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { DEFAULT_CONSTITUTION, DEFAULT_CONSTITUTION_RULES } from '../src/governance/constitution';
 
 const prisma = new PrismaClient();
 
@@ -11,6 +12,26 @@ async function main() {
     update: {},
     create: { id: 'singleton', nextNum: 1 },
   });
+
+  // Seed Genesis Constitution (only if none exists)
+  const existingConstitution = await prisma.constitution.findFirst({
+    where: { isActive: true },
+  });
+
+  if (!existingConstitution) {
+    await prisma.constitution.create({
+      data: {
+        version: 1,
+        body: DEFAULT_CONSTITUTION,
+        rules: DEFAULT_CONSTITUTION_RULES,
+        isActive: true,
+        ratifiedAt: new Date(),
+      },
+    });
+    console.log('✅ Genesis Constitution created.');
+  } else {
+    console.log(`   Constitution v${existingConstitution.version} already exists.`);
+  }
 
   // Create default project
   const project = await prisma.project.upsert({
