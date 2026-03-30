@@ -2,9 +2,8 @@
 
 import useSWR from 'swr';
 import { useState } from 'react';
-import { api, Goal } from '@/lib/api';
+import { api, swrFetcher, Goal } from '@/lib/api';
 
-const fetcher = (url: string) => api.get(url);
 
 const statusColor: Record<string, string> = {
   draft: 'bg-slate-600 text-slate-200',
@@ -25,7 +24,7 @@ const statusLabel: Record<string, string> = {
 };
 
 export default function GoalsPage() {
-  const { data: goals, mutate } = useSWR<Goal[]>('/api/goals', fetcher, { refreshInterval: 15000 });
+  const { data: goals, mutate } = useSWR<Goal[]>('/api/goals', swrFetcher, { refreshInterval: 15000 });
   const [showNew, setShowNew] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');

@@ -14,7 +14,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
     const err = await res.text();
     throw new Error(`API ${res.status}: ${err}`);
   }
-  return res.json();
+  return res.json() as Promise<T>;
 }
 
 export const api = {
@@ -24,6 +24,14 @@ export const api = {
   patch: <T>(path: string, body: unknown) =>
     apiFetch<T>(path, { method: 'PATCH', body: JSON.stringify(body) }),
 };
+
+/**
+ * Typed SWR fetcher — use this instead of defining inline fetchers.
+ * Usage: useSWR<MyType>('/api/foo', swrFetcher)
+ */
+export function swrFetcher<T>(url: string): Promise<T> {
+  return apiFetch<T>(url);
+}
 
 // --- Types ---
 

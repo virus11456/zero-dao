@@ -2,18 +2,17 @@
 
 import useSWR from 'swr';
 import { useState } from 'react';
-import { api, IncomeEvent, FinancialReport } from '@/lib/api';
+import { api, swrFetcher, IncomeEvent, FinancialReport } from '@/lib/api';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
-const fetcher = (url: string) => api.get(url);
 
 function fmtTWD(cents: number) {
   return `NT$ ${(cents / 100).toLocaleString('zh-TW', { maximumFractionDigits: 0 })}`;
 }
 
 export default function FinancePage() {
-  const { data: income, mutate: mutateIncome } = useSWR<IncomeEvent[]>('/api/income', fetcher, { refreshInterval: 30000 });
-  const { data: reports } = useSWR<FinancialReport[]>('/api/finance/reports', fetcher);
+  const { data: income, mutate: mutateIncome } = useSWR<IncomeEvent[]>('/api/income', swrFetcher, { refreshInterval: 30000 });
+  const { data: reports } = useSWR<FinancialReport[]>('/api/finance/reports', swrFetcher);
   const [showIncome, setShowIncome] = useState(false);
   const [form, setForm] = useState({ source: '', description: '', amountCents: '', currency: 'TWD' });
   const [generating, setGenerating] = useState<string | null>(null);

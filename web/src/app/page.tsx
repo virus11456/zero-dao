@@ -1,10 +1,9 @@
 'use client';
 
 import useSWR from 'swr';
-import { api, DashboardData, Task, Agent, Goal } from '@/lib/api';
+import { swrFetcher, DashboardData, Task, Agent, Goal } from '@/lib/api';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
-const fetcher = (url: string) => api.get(url);
 
 const statusColor: Record<string, string> = {
   todo: 'bg-slate-600',
@@ -47,10 +46,10 @@ function Badge({ status }: { status: string }) {
 }
 
 export default function DashboardPage() {
-  const { data: dash, isLoading: dashLoading } = useSWR<DashboardData>('/api/dashboard', fetcher, { refreshInterval: 15000 });
-  const { data: tasks } = useSWR<Task[]>('/api/tasks', fetcher, { refreshInterval: 15000 });
-  const { data: agents } = useSWR<Agent[]>('/api/agents', fetcher, { refreshInterval: 30000 });
-  const { data: goals } = useSWR<Goal[]>('/api/goals', fetcher, { refreshInterval: 30000 });
+  const { data: dash, isLoading: dashLoading } = useSWR<DashboardData>('/api/dashboard', swrFetcher, { refreshInterval: 15000 });
+  const { data: tasks } = useSWR<Task[]>('/api/tasks', swrFetcher, { refreshInterval: 15000 });
+  const { data: agents } = useSWR<Agent[]>('/api/agents', swrFetcher, { refreshInterval: 30000 });
+  const { data: goals } = useSWR<Goal[]>('/api/goals', swrFetcher, { refreshInterval: 30000 });
 
   const inProgressTasks = tasks?.filter((t) => t.status === 'in_progress').slice(0, 5) ?? [];
   const blockedTasks = tasks?.filter((t) => t.status === 'blocked').slice(0, 3) ?? [];

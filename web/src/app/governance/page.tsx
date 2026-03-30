@@ -2,9 +2,8 @@
 
 import useSWR from 'swr';
 import { useState } from 'react';
-import { api, Proposal } from '@/lib/api';
+import { api, swrFetcher, Proposal } from '@/lib/api';
 
-const fetcher = (url: string) => api.get(url);
 
 const statusConfig: Record<string, { color: string; label: string }> = {
   open:     { color: 'bg-sky-500/20 text-sky-400', label: '投票中' },
@@ -25,7 +24,7 @@ const typeLabel: Record<string, string> = {
 };
 
 export default function GovernancePage() {
-  const { data: proposals, mutate } = useSWR<Proposal[]>('/api/proposals', fetcher, { refreshInterval: 30000 });
+  const { data: proposals, mutate } = useSWR<Proposal[]>('/api/proposals', swrFetcher, { refreshInterval: 30000 });
   const [showNew, setShowNew] = useState(false);
   const [form, setForm] = useState({ type: 'custom', title: '', description: '' });
   const [voting, setVoting] = useState<string | null>(null);

@@ -2,9 +2,8 @@
 
 import useSWR from 'swr';
 import { useState } from 'react';
-import { api, Task, TaskStatus } from '@/lib/api';
+import { api, swrFetcher, Task, TaskStatus } from '@/lib/api';
 
-const fetcher = (url: string) => api.get(url);
 
 const STATUS_COLS: TaskStatus[] = ['todo', 'in_progress', 'in_review', 'done', 'blocked'];
 
@@ -32,7 +31,7 @@ const priorityBadge: Record<string, string> = {
 };
 
 export default function TasksPage() {
-  const { data: tasks, mutate } = useSWR<Task[]>('/api/tasks', fetcher, { refreshInterval: 10000 });
+  const { data: tasks, mutate } = useSWR<Task[]>('/api/tasks', swrFetcher, { refreshInterval: 10000 });
   const [filter, setFilter] = useState<'all' | TaskStatus>('all');
 
   const grouped = STATUS_COLS.reduce<Record<string, Task[]>>((acc, s) => {

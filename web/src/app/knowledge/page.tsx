@@ -2,9 +2,8 @@
 
 import useSWR from 'swr';
 import { useState } from 'react';
-import { api, KnowledgeFact } from '@/lib/api';
+import { api, swrFetcher, KnowledgeFact } from '@/lib/api';
 
-const fetcher = (url: string) => api.get(url);
 
 const typeConfig: Record<string, { color: string; label: string; icon: string }> = {
   lesson:    { color: 'bg-sky-500/20 text-sky-400', label: '教訓', icon: '📚' },
@@ -17,7 +16,7 @@ export default function KnowledgePage() {
   const [q, setQ] = useState('');
   const [type, setType] = useState('');
   const queryStr = `/api/knowledge?${new URLSearchParams({ ...(q && { q }), ...(type && { type }) })}`;
-  const { data: facts } = useSWR<KnowledgeFact[]>(queryStr, fetcher, { refreshInterval: 60000 });
+  const { data: facts } = useSWR<KnowledgeFact[]>(queryStr, swrFetcher, { refreshInterval: 60000 });
 
   const grouped = (facts ?? []).reduce<Record<string, KnowledgeFact[]>>((acc, f) => {
     (acc[f.type] ??= []).push(f);

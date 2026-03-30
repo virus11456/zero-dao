@@ -1,9 +1,8 @@
 'use client';
 
 import useSWR from 'swr';
-import { api, Agent } from '@/lib/api';
+import { swrFetcher, Agent } from '@/lib/api';
 
-const fetcher = (url: string) => api.get(url);
 
 const statusConfig: Record<string, { color: string; label: string; emoji: string }> = {
   idle:    { color: 'bg-slate-500/20 text-slate-400', label: '閒置', emoji: '💤' },
@@ -22,7 +21,7 @@ const roleLabel: Record<string, string> = {
 };
 
 export default function AgentsPage() {
-  const { data: agents } = useSWR<Agent[]>('/api/agents', fetcher, { refreshInterval: 15000 });
+  const { data: agents } = useSWR<Agent[]>('/api/agents', swrFetcher, { refreshInterval: 15000 });
 
   return (
     <div className="space-y-6">
