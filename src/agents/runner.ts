@@ -2,8 +2,10 @@ import Anthropic from '@anthropic-ai/sdk';
 import { PrismaClient } from '@prisma/client';
 import { config } from '../config';
 import { Task, Agent } from '@prisma/client';
+import { KnowledgeBase } from '../memory/knowledge-base';
 
 const prisma = new PrismaClient();
+const kb = new KnowledgeBase();
 
 /**
  * AgentRunner — executes a single agent heartbeat for a given task.
@@ -57,9 +59,23 @@ export class AgentRunner {
         .join('\n');
 
       // --- 3. Parse and apply actions ---
-      await this.applyActions(agent, task, outputText);
+      const actionResult = await this.applyActions(agent, task, outputText);
 
-      // --- 4. Record run ---
+      // --- 4. Extract and store lessons learned ---
+      if (actionResult.finalStatus === 'done' || actionResult.finalStatus === 'blocked') {
+        const lessonsStored = await kb.extractLessons({
+          agentId: agent.id,
+          taskTitle: task.title,
+          taskDescription: task.description ?? undefined,
+          taskOutcome: actionResult.comment || outputText.slice(0, 800),
+          taskStatus: actionResult.finalStatus as 'done' | 'blocked',
+        });
+        if (lessonsStored > 0) {
+          console.log(`[AgentRunner] Stored ${lessonsStored} lessons from task ${task.identifier}`);
+        }
+      }
+
+      // --- 5. Record run ---
       const costCents = Math.round(
         (usage.input_tokens * 0.003 + usage.output_tokens * 0.015) / 10,
       );
@@ -85,11 +101,12 @@ export class AgentRunner {
   }
 
   private async buildContext(agent: Agent, task: Task): Promise<string> {
-    // Fetch recent memories
-    const memories = await prisma.agentMemory.findMany({
-      where: { agentId: agent.id },
-      orderBy: { lastAccessAt: 'desc' },
-      take: 10,
+    // Fetch relevant knowledge from KB (semantic retrieval)
+    const relevantKnowledge = await kb.retrieve({
+      agentId: agent.id,
+      taskTitle: task.title,
+      taskDescription: task.description ?? undefined,
+      maxResults: 6,
     });
 
     // Fetch task comments
@@ -105,10 +122,7 @@ export class AgentRunner {
       select: { identifier: true, title: true, status: true },
     });
 
-    const memorySection =
-      memories.length > 0
-        ? `## Your Memory\n${memories.map((m) => `- **${m.title}**: ${m.body.slice(0, 200)}`).join('\n')}`
-        : '';
+    const knowledgeSection = kb.formatForContext(relevantKnowledge);
 
     const commentSection =
       comments.length > 0
@@ -130,7 +144,7 @@ export class AgentRunner {
 ## Description
 ${task.description || 'No description provided.'}
 
-${memorySection}
+${knowledgeSection}
 ${commentSection}
 ${subtaskSection}
 
@@ -156,7 +170,7 @@ Only include fields that apply. Status must be one of: done, in_progress, blocke
     _agent: Agent,
     task: Task,
     output: string,
-  ): Promise<void> {
+  ): Promise<{ finalStatus: string; comment: string }> {
     // Extract JSON block from response
     const jsonMatch = output.match(/```json\s*([\s\S]*?)```/);
     if (!jsonMatch) {
@@ -164,7 +178,7 @@ Only include fields that apply. Status must be one of: done, in_progress, blocke
       await prisma.taskComment.create({
         data: { taskId: task.id, content: output, isSystem: false },
       });
-      return;
+      return { finalStatus: 'in_progress', comment: output.slice(0, 500) };
     }
 
     let action: {
@@ -184,7 +198,7 @@ Only include fields that apply. Status must be one of: done, in_progress, blocke
           isSystem: true,
         },
       });
-      return;
+      return { finalStatus: 'in_progress', comment: '' };
     }
 
     // Update task status
@@ -233,5 +247,7 @@ Only include fields that apply. Status must be one of: done, in_progress, blocke
         });
       }
     }
+
+    return { finalStatus: action.status || 'in_progress', comment: action.comment || '' };
   }
 }

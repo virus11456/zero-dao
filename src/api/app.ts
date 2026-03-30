@@ -3,11 +3,13 @@ import { PrismaClient } from '@prisma/client';
 import { TaskRouter } from '../tasks/router';
 import { GovernanceEngine } from '../governance/engine';
 import { ProfitDistributor } from '../governance/profit-distributor';
+import { KnowledgeBase } from '../memory/knowledge-base';
 
 const prisma = new PrismaClient();
 const router = new TaskRouter();
 const governance = new GovernanceEngine();
 const profitDistributor = new ProfitDistributor();
+const knowledgeBase = new KnowledgeBase();
 
 export function createApp(): express.Express {
   const app = express();
@@ -238,6 +240,79 @@ export function createApp(): express.Express {
   app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
     console.error('[API Error]', err);
     res.status(500).json({ error: err.message });
+  });
+
+  // ── Knowledge Base ────────────────────────────────────────────────────────────
+  // List all knowledge facts (optionally filtered by agent or type)
+  app.get('/api/knowledge', async (req, res) => {
+    const { agentId, type, q } = req.query as Record<string, string>;
+    const facts = await prisma.agentMemory.findMany({
+      where: {
+        ...(agentId && { agentId }),
+        ...(type && { type }),
+        ...(q && {
+          OR: [
+            { title: { contains: q, mode: 'insensitive' } },
+            { body: { contains: q, mode: 'insensitive' } },
+            { tags: { has: q } },
+          ],
+        }),
+      },
+      include: { agent: { select: { name: true, role: true } } },
+      orderBy: [{ accessCount: 'desc' }, { updatedAt: 'desc' }],
+      take: 50,
+    });
+    res.json(facts);
+  });
+
+  // Get knowledge for a specific agent
+  app.get('/api/agents/:id/knowledge', async (req, res) => {
+    const facts = await prisma.agentMemory.findMany({
+      where: { agentId: req.params.id },
+      orderBy: [{ accessCount: 'desc' }, { updatedAt: 'desc' }],
+    });
+    res.json(facts);
+  });
+
+  // Manually store a knowledge fact for an agent
+  app.post('/api/agents/:id/knowledge', async (req: Request, res: Response) => {
+    const { type, key, title, body, tags } = req.body;
+    await knowledgeBase.store({
+      agentId: req.params.id,
+      type,
+      key: key || `manual-${Date.now()}`,
+      title,
+      body,
+      tags: tags || [],
+    });
+    const fact = await prisma.agentMemory.findUnique({
+      where: { agentId_key: { agentId: req.params.id, key: key || `manual-${Date.now()}` } },
+    });
+    res.status(201).json(fact);
+  });
+
+  // Store feedback for an agent
+  app.post('/api/agents/:id/feedback', async (req: Request, res: Response) => {
+    const { feedback, context, fromUserId } = req.body;
+    await knowledgeBase.storeFeedback({
+      agentId: req.params.id,
+      fromUserId,
+      feedback,
+      context,
+    });
+    res.status(201).json({ message: 'Feedback stored' });
+  });
+
+  // Retrieve relevant knowledge for a given task context
+  app.post('/api/knowledge/retrieve', async (req: Request, res: Response) => {
+    const { agentId, taskTitle, taskDescription, maxResults } = req.body;
+    const facts = await knowledgeBase.retrieve({
+      agentId,
+      taskTitle,
+      taskDescription,
+      maxResults,
+    });
+    res.json(facts);
   });
 
   // ── Constitution ──────────────────────────────────────────────────────────────
