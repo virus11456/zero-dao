@@ -1,0 +1,233 @@
+// This is your Prisma schema file.
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =========================================================
+// AGENTS
+// =========================================================
+
+enum AgentRole {
+  ceo
+  engineer
+  designer
+  researcher
+  marketing
+  analyst
+}
+
+enum AgentStatus {
+  idle
+  running
+  paused
+  error
+}
+
+model Agent {
+  id          String      @id @default(uuid())
+  name        String
+  role        AgentRole
+  status      AgentStatus @default(idle)
+  model       String      @default("claude-sonnet-4-6")
+  systemPrompt String     @db.Text
+  capabilities String[]   // e.g. ["typescript", "python", "seo", "react"]
+  maxParallelTasks Int    @default(2)
+  heartbeatIntervalSec Int @default(3600)
+  lastHeartbeatAt DateTime?
+  reportsToId String?
+  reportsTo   Agent?      @relation("ReportsTo", fields: [reportsToId], references: [id])
+  directReports Agent[]   @relation("ReportsTo")
+  tasks       Task[]      @relation("AssignedTasks")
+  runs        AgentRun[]
+  memories    AgentMemory[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([status])
+  @@index([role])
+}
+
+// =========================================================
+// TASKS
+// =========================================================
+
+enum TaskStatus {
+  backlog
+  todo
+  in_progress
+  in_review
+  done
+  blocked
+  cancelled
+}
+
+enum TaskPriority {
+  critical
+  high
+  medium
+  low
+}
+
+model Task {
+  id          String       @id @default(uuid())
+  identifier  String       @unique // e.g. ZD-1
+  title       String
+  description String?      @db.Text
+  status      TaskStatus   @default(todo)
+  priority    TaskPriority @default(medium)
+  projectId   String?
+  project     Project?     @relation(fields: [projectId], references: [id])
+  parentId    String?
+  parent      Task?        @relation("SubTasks", fields: [parentId], references: [id])
+  subtasks    Task[]       @relation("SubTasks")
+  assigneeId  String?
+  assignee    Agent?       @relation("AssignedTasks", fields: [assigneeId], references: [id])
+  labels      String[]
+  blockedReason String?    @db.Text
+  completedAt DateTime?
+  dueDate     DateTime?
+  comments    TaskComment[]
+  runs        AgentRun[]
+  documents   TaskDocument[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([status])
+  @@index([assigneeId])
+  @@index([projectId])
+}
+
+model TaskComment {
+  id        String   @id @default(uuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id])
+  authorId  String?  // null = system or board
+  content   String   @db.Text
+  isSystem  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([taskId])
+}
+
+model TaskDocument {
+  id         String   @id @default(uuid())
+  taskId     String
+  task       Task     @relation(fields: [taskId], references: [id])
+  key        String   // e.g. "plan", "spec", "notes"
+  title      String
+  body       String   @db.Text
+  format     String   @default("markdown")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([taskId, key])
+}
+
+// =========================================================
+// PROJECTS
+// =========================================================
+
+enum ProjectStatus {
+  planned
+  active
+  paused
+  completed
+  archived
+}
+
+model Project {
+  id          String        @id @default(uuid())
+  name        String
+  description String?       @db.Text
+  status      ProjectStatus @default(planned)
+  repoUrl     String?
+  tasks       Task[]
+  targetDate  DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+// =========================================================
+// AGENT RUNS
+// =========================================================
+
+enum RunStatus {
+  running
+  completed
+  failed
+  timeout
+}
+
+model AgentRun {
+  id        String    @id @default(uuid())
+  agentId   String
+  agent     Agent     @relation(fields: [agentId], references: [id])
+  taskId    String?
+  task      Task?     @relation(fields: [taskId], references: [id])
+  status    RunStatus @default(running)
+  inputTokens  Int    @default(0)
+  outputTokens Int    @default(0)
+  costCents    Int    @default(0)
+  startedAt DateTime  @default(now())
+  completedAt DateTime?
+  error     String?   @db.Text
+  logs      String[]
+
+  @@index([agentId])
+  @@index([taskId])
+  @@index([status])
+}
+
+// =========================================================
+// MEMORY
+// =========================================================
+
+model AgentMemory {
+  id        String   @id @default(uuid())
+  agentId   String
+  agent     Agent    @relation(fields: [agentId], references: [id])
+  type      String   // "user", "feedback", "project", "reference"
+  key       String   // slug identifier
+  title     String
+  body      String   @db.Text
+  tags      String[]
+  accessCount Int    @default(0)
+  lastAccessAt DateTime?
+  supersededBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([agentId, key])
+  @@index([agentId])
+  @@index([type])
+}
+
+// =========================================================
+// NOTIFICATIONS
+// =========================================================
+
+model Notification {
+  id        String   @id @default(uuid())
+  channel   String   // "telegram", "email"
+  recipient String   // chat_id or email
+  subject   String?
+  body      String   @db.Text
+  sentAt    DateTime?
+  error     String?
+  createdAt DateTime @default(now())
+}
+
+// =========================================================
+// TASK AUTO-NUMBER SEQUENCE
+// =========================================================
+model TaskSequence {
+  id      String @id @default("singleton")
+  nextNum Int    @default(1)
+}
