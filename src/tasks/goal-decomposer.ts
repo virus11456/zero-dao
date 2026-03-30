@@ -129,13 +129,14 @@ Decompose this goal into 3-8 actionable tasks. Return ONLY valid JSON, no markdo
           data: { nextNum: { increment: 1 } },
         });
 
-        await prisma.task.create({
+        const created = await prisma.task.create({
           data: {
             identifier: `ZD-${seq.nextNum}`,
             title: task.title,
             description: task.description,
             priority: (task.priority as 'critical' | 'high' | 'medium' | 'low') || 'medium',
             projectId: opts.projectId,
+            goalId: opts.goalId,
             labels: task.capabilities || [],
             status: 'todo',
           },
@@ -143,11 +144,7 @@ Decompose this goal into 3-8 actionable tasks. Return ONLY valid JSON, no markdo
 
         await prisma.taskComment.create({
           data: {
-            taskId: (
-              await prisma.task.findUnique({
-                where: { identifier: `ZD-${seq.nextNum}` },
-              })
-            )!.id,
+            taskId: created.id,
             content: `Auto-generated from goal: **${opts.goalTitle}**\nMilestone: ${milestone.name}`,
             isSystem: true,
           },
