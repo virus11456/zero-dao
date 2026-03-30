@@ -129,6 +129,67 @@ export function createApp(): express.Express {
     res.json(agent);
   });
 
+  // ── Goals (DAO autonomous planning) ─────────────────────────────────────────
+  app.get('/api/goals', async (_req, res) => {
+    const goals = await prisma.goal.findMany({
+      include: {
+        _count: {
+          select: { tasks: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(goals);
+  });
+
+  app.post('/api/goals', async (req: Request, res: Response) => {
+    const { title, description, projectId, targetDate } = req.body;
+    const goal = await prisma.goal.create({
+      data: {
+        title,
+        description,
+        projectId,
+        targetDate: targetDate ? new Date(targetDate) : undefined,
+        status: 'draft',
+      },
+    });
+    res.status(201).json(goal);
+  });
+
+  app.patch('/api/goals/:id', async (req, res) => {
+    const { status, title, description } = req.body;
+    const goal = await prisma.goal.update({
+      where: { id: req.params.id },
+      data: {
+        ...(status && { status }),
+        ...(title && { title }),
+        ...(description !== undefined && { description }),
+      },
+    });
+    res.json(goal);
+  });
+
+  // Manually trigger decomposition for a goal
+  app.post('/api/goals/:id/decompose', async (req, res) => {
+    const { GoalDecomposer } = await import('../tasks/goal-decomposer');
+    const goal = await prisma.goal.findUnique({
+      where: { id: req.params.id },
+      include: { tasks: { select: { title: true } } },
+    });
+    if (!goal) return res.status(404).json({ error: 'Goal not found' });
+
+    const decomposer = new GoalDecomposer();
+    const count = await decomposer.decompose({
+      goalId: goal.id,
+      goalTitle: goal.title,
+      goalDescription: goal.description || undefined,
+      projectId: goal.projectId || undefined,
+      existingTaskTitles: goal.tasks.map((t) => t.title),
+    });
+
+    res.json({ tasksCreated: count });
+  });
+
   // ── Projects ─────────────────────────────────────────────────────────────────
   app.get('/api/projects', async (_req, res) => {
     const projects = await prisma.project.findMany({
@@ -152,17 +213,20 @@ export function createApp(): express.Express {
 
   // ── Dashboard ────────────────────────────────────────────────────────────────
   app.get('/api/dashboard', async (_req, res) => {
-    const [inProgress, blocked, done, todo, agents] = await Promise.all([
+    const [inProgress, blocked, done, todo, agents, activeGoals, completedGoals] = await Promise.all([
       prisma.task.count({ where: { status: 'in_progress' } }),
       prisma.task.count({ where: { status: 'blocked' } }),
       prisma.task.count({ where: { status: 'done' } }),
       prisma.task.count({ where: { status: 'todo' } }),
       prisma.agent.groupBy({ by: ['status'], _count: true }),
+      prisma.goal.count({ where: { status: { in: ['active', 'planning'] } } }),
+      prisma.goal.count({ where: { status: 'completed' } }),
     ]);
 
     res.json({
       tasks: { inProgress, blocked, done, todo },
       agents: Object.fromEntries(agents.map((a) => [a.status, a._count])),
+      goals: { active: activeGoals, completed: completedGoals },
     });
   });
 

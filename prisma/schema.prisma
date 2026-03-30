@@ -84,6 +84,8 @@ model Task {
   priority    TaskPriority @default(medium)
   projectId   String?
   project     Project?     @relation(fields: [projectId], references: [id])
+  goalId      String?
+  goal        Goal?        @relation("GoalTasks", fields: [goalId], references: [id])
   parentId    String?
   parent      Task?        @relation("SubTasks", fields: [parentId], references: [id])
   subtasks    Task[]       @relation("SubTasks")
@@ -102,6 +104,7 @@ model Task {
   @@index([status])
   @@index([assigneeId])
   @@index([projectId])
+  @@index([goalId])
 }
 
 model TaskComment {
@@ -149,9 +152,43 @@ model Project {
   status      ProjectStatus @default(planned)
   repoUrl     String?
   tasks       Task[]
+  goals       Goal[]
   targetDate  DateTime?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
+}
+
+// =========================================================
+// GOALS (DAO autonomous planning layer)
+// =========================================================
+
+enum GoalStatus {
+  draft      // not yet activated
+  planning   // being decomposed into tasks
+  active     // tasks are running
+  completed  // all tasks done
+  paused
+  cancelled
+}
+
+model Goal {
+  id          String     @id @default(uuid())
+  title       String
+  description String?    @db.Text
+  status      GoalStatus @default(draft)
+  projectId   String?
+  project     Project?   @relation(fields: [projectId], references: [id])
+  tasks       Task[]     @relation("GoalTasks")
+  // Metrics for self-improvement
+  tasksCreated Int       @default(0)
+  tasksDone    Int       @default(0)
+  selfHealCount Int      @default(0)
+  completedAt DateTime?
+  targetDate  DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([status])
 }
 
 // =========================================================

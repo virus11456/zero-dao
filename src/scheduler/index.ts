@@ -1,10 +1,12 @@
 import { CronJob } from 'cron';
 import { PrismaClient } from '@prisma/client';
 import { TaskRouter } from '../tasks/router';
+import { AutonomousLoop } from '../agents/autonomous-loop';
 import { notify } from '../telegram/bot';
 
 const prisma = new PrismaClient();
 const router = new TaskRouter();
+const autonomousLoop = new AutonomousLoop();
 
 /**
  * Scheduler — the heartbeat of the zero-dao.
@@ -16,11 +18,17 @@ const router = new TaskRouter();
  * 4. Prune completed runs older than 30 days.
  */
 export class Scheduler {
+  private autonomousLoopJob: CronJob;
   private taskRouterJob: CronJob;
   private stuckCheckJob: CronJob;
   private dailyDigestJob: CronJob;
 
   constructor() {
+    // Autonomous loop: goal decomposition + self-healing (every 10 minutes)
+    this.autonomousLoopJob = new CronJob('*/10 * * * *', () => {
+      this.runAutonomousLoop().catch(console.error);
+    });
+
     // Route tasks every 5 minutes
     this.taskRouterJob = new CronJob('*/5 * * * *', () => {
       this.runTaskRouter().catch(console.error);
@@ -38,6 +46,7 @@ export class Scheduler {
   }
 
   start(): void {
+    this.autonomousLoopJob.start();
     this.taskRouterJob.start();
     this.stuckCheckJob.start();
     this.dailyDigestJob.start();
@@ -45,9 +54,18 @@ export class Scheduler {
   }
 
   stop(): void {
+    this.autonomousLoopJob.stop();
     this.taskRouterJob.stop();
     this.stuckCheckJob.stop();
     this.dailyDigestJob.stop();
+  }
+
+  private async runAutonomousLoop(): Promise<void> {
+    try {
+      await autonomousLoop.tick();
+    } catch (err) {
+      console.error('[Scheduler] Autonomous loop error:', err);
+    }
   }
 
   private async runTaskRouter(): Promise<void> {
