@@ -273,6 +273,24 @@ model TaskSequence {
 // GENESIS CONSTITUTION
 // =========================================================
 
+/**
+ * BoardMember — tracks human board members for governance quorum calculation.
+ * Each board member gets one vote (configurable weight).
+ */
+model BoardMember {
+  id          String   @id @default(uuid())
+  userId      String   @unique  // external user ID (e.g. Paperclip userId)
+  name        String
+  email       String?
+  voteWeight  Int      @default(1)
+  isActive    Boolean  @default(true)
+  joinedAt    DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive])
+}
+
 model Constitution {
   id         String     @id @default(uuid())
   version    Int        @default(1)

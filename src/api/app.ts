@@ -6,6 +6,7 @@ import { ProfitDistributor } from '../governance/profit-distributor';
 import { KnowledgeBase } from '../memory/knowledge-base';
 import { Ledger } from '../finance/ledger';
 import { FinancialReporter } from '../finance/reporter';
+import { apiKeyAuth } from './auth';
 
 const prisma = new PrismaClient();
 const router = new TaskRouter();
@@ -19,10 +20,13 @@ export function createApp(): express.Express {
   const app = express();
   app.use(express.json());
 
-  // ── Health ──────────────────────────────────────────────────────────────────
+  // ── Health (no auth required) ────────────────────────────────────────────────
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
+
+  // ── Apply API key auth to all /api/* routes ──────────────────────────────────
+  app.use('/api', apiKeyAuth);
 
   // ── Tasks ───────────────────────────────────────────────────────────────────
   app.get('/api/tasks', async (_req, res) => {
@@ -317,6 +321,33 @@ export function createApp(): express.Express {
       maxResults,
     });
     res.json(facts);
+  });
+
+  // ── Board Members ─────────────────────────────────────────────────────────────
+  app.get('/api/board', async (_req, res) => {
+    const members = await prisma.boardMember.findMany({
+      where: { isActive: true },
+      orderBy: { joinedAt: 'asc' },
+    });
+    res.json(members);
+  });
+
+  app.post('/api/board', async (req: Request, res: Response) => {
+    const { userId, name, email, voteWeight } = req.body;
+    const member = await prisma.boardMember.upsert({
+      where: { userId },
+      update: { name, email, isActive: true },
+      create: { userId, name, email, voteWeight: voteWeight ?? 1 },
+    });
+    res.status(201).json(member);
+  });
+
+  app.patch('/api/board/:id', async (req, res) => {
+    const member = await prisma.boardMember.update({
+      where: { id: req.params.id },
+      data: req.body,
+    });
+    res.json(member);
   });
 
   // ── Constitution ──────────────────────────────────────────────────────────────

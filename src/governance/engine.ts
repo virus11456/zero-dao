@@ -118,29 +118,30 @@ export class GovernanceEngine {
     const now = new Date();
     const expired = now > proposal.votingDeadline;
 
-    const totalWeight = proposal.votes.reduce((s, v) => s + v.weight, 0);
+    // Get total eligible board members for quorum calculation
+    const totalBoardMembers = await prisma.boardMember.count({ where: { isActive: true } });
+    const totalEligibleWeight = totalBoardMembers > 0 ? totalBoardMembers : 1;
+
+    const totalVoteWeight = proposal.votes.reduce((s, v) => s + v.weight, 0);
     const yesWeight = proposal.votes
       .filter((v) => v.choice === 'yes')
       .reduce((s, v) => s + v.weight, 0);
 
-    // Count board members for quorum check
-    const boardMemberCount = await prisma.vote.count({
-      where: { proposalId, voterUserId: { not: null } },
-    });
+    // Quorum: % of eligible board members who voted
+    const quorumReached = totalBoardMembers === 0
+      ? totalVoteWeight >= 1  // no board members registered → 1 vote sufficient
+      : (totalVoteWeight / totalEligibleWeight) * 100 >= proposal.quorumPercent;
 
-    // Quorum: we approximate based on votes cast vs expected voters
-    // In a real deployment, you'd track total board member count separately
-    const hasQuorum = totalWeight >= 1; // At minimum 1 vote for MVP; real quorum check below
-    const yesPct = totalWeight > 0 ? (yesWeight / totalWeight) * 100 : 0;
-    const passed = hasQuorum && yesPct >= proposal.passThreshold;
+    const yesPct = totalVoteWeight > 0 ? (yesWeight / totalVoteWeight) * 100 : 0;
+    const passed = quorumReached && yesPct >= proposal.passThreshold;
 
     if (expired && !passed) {
       await prisma.proposal.update({
         where: { id: proposalId },
-        data: { status: totalWeight === 0 ? 'expired' : 'rejected' },
+        data: { status: totalVoteWeight === 0 ? 'expired' : 'rejected' },
       });
       await notify(
-        `❌ *Proposal ${passed ? 'rejected' : 'expired'}*: ${proposal.title}\nVotes: ${totalWeight} total, ${yesPct.toFixed(0)}% yes`,
+        `❌ *提案${totalVoteWeight === 0 ? '過期' : '未通過'}*: ${proposal.title}\n投票: ${totalVoteWeight}票，${yesPct.toFixed(0)}% 贊成`,
       );
       return;
     }
@@ -151,9 +152,8 @@ export class GovernanceEngine {
         data: { status: 'passed' },
       });
       await notify(
-        `✅ *Proposal passed*: ${proposal.title}\nVotes: ${yesWeight}/${totalWeight} yes (${yesPct.toFixed(0)}%)\nCEO will execute within 24h.`,
+        `✅ *提案通過*: ${proposal.title}\n${yesWeight}/${totalVoteWeight}票贊成 (${yesPct.toFixed(0)}%)，CEO 將在24小時內執行。`,
       );
-      // Trigger execution
       await this.executeProposal(proposalId);
     }
   }
