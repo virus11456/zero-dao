@@ -11,6 +11,7 @@ const nav = [
   { href: '/agents',     label: 'Agents', icon: '🤖' },
   { href: '/finance',    label: '財務',   icon: '💰' },
   { href: '/governance', label: '治理',   icon: '🗳️' },
+  { href: '/archive',    label: '檔案庫', icon: '📁' },
   { href: '/knowledge',  label: '知識庫', icon: '📚' },
 ];
 

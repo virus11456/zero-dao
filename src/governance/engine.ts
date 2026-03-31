@@ -1,7 +1,9 @@
 import { PrismaClient } from '@prisma/client';
 import { notify } from '../telegram/bot';
+import { ArchiveService } from '../archive/service';
 
 const prisma = new PrismaClient();
+const archive = new ArchiveService();
 
 /**
  * GovernanceEngine — handles proposals, voting, and execution.
@@ -143,6 +145,8 @@ export class GovernanceEngine {
       await notify(
         `❌ *提案${totalVoteWeight === 0 ? '過期' : '未通過'}*: ${proposal.title}\n投票: ${totalVoteWeight}票，${yesPct.toFixed(0)}% 贊成`,
       );
+      // Archive the decision (rejected/expired also get recorded)
+      await archive.recordBoardDecision(proposalId).catch(console.error);
       return;
     }
 
@@ -154,6 +158,8 @@ export class GovernanceEngine {
       await notify(
         `✅ *提案通過*: ${proposal.title}\n${yesWeight}/${totalVoteWeight}票贊成 (${yesPct.toFixed(0)}%)，CEO 將在24小時內執行。`,
       );
+      // Archive the decision
+      await archive.recordBoardDecision(proposalId).catch(console.error);
       await this.executeProposal(proposalId);
     }
   }

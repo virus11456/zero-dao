@@ -1,9 +1,11 @@
 import { PrismaClient } from '@prisma/client';
 import { GoalDecomposer } from '../tasks/goal-decomposer';
 import { notify } from '../telegram/bot';
+import { ArchiveService } from '../archive/service';
 
 const prisma = new PrismaClient();
 const decomposer = new GoalDecomposer();
+const archive = new ArchiveService();
 
 /**
  * AutonomousLoop — the continuous self-operation engine of the DAO.
@@ -88,6 +90,9 @@ export class AutonomousLoop {
         where: { id: goal.id },
         data: { status: 'completed', completedAt: new Date() },
       });
+
+      // Archive the goal completion
+      await archive.recordGoalCompletion(goal.id).catch(console.error);
 
       await notify(
         `✅ *Goal completed*: ${goal.title}\n${total} tasks done. The DAO advances.`,
