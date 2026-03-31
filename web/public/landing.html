@@ -1328,6 +1328,8 @@ footer a { color: var(--text-dim); }
 
     <a href="#agents">AI Agents</a>
 
+    <a href="#hiring">CEO 雇用</a>
+
     <a href="#constitution">創世法規</a>
 
     <a href="#stack">技術棧</a>
@@ -1778,6 +1780,83 @@ footer a { color: var(--text-dim); }
 
       </div>
 
+    </div>
+
+  </div>
+
+</section>
+
+<!-- ═══════════════ HIRING ═══════════════ -->
+
+<section id="hiring">
+
+  <div class="section-inner reveal">
+
+    <div class="section-label">// CEO Hiring</div>
+
+    <div class="section-title">CEO 雇用員工，直接指派任務</div>
+
+    <div class="section-desc">CEO Agent 不只執行任務，還能雇用新員工、指派工作、監控組織架構。真正的零人公司運作模式。</div>
+
+    <div class="modules-grid" style="margin-top:3rem;">
+
+      <div class="module-card">
+        <div class="module-icon">🤝</div>
+        <div class="module-name">AI 生成招募提示</div>
+        <div class="module-desc">CEO 輸入職責描述，Claude 自動生成完整系統提示，Agent 立即上線工作。</div>
+        <div style="margin-top:1.2rem;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:1rem;font-family:var(--font-mono);font-size:0.72rem;color:var(--text-dim);line-height:1.7;">
+          POST /api/agents/hire<br>
+          {<br>
+          &nbsp;&nbsp;"name": "Jane",<br>
+          &nbsp;&nbsp;"role": "marketing",<br>
+          &nbsp;&nbsp;"responsibilities": "..."<br>
+          }<br>
+          <span style="color:var(--accent);">→ AI 生成系統提示</span><br>
+          <span style="color:var(--accent);">→ 歸入公司檔案庫</span><br>
+          <span style="color:var(--accent);">→ Telegram 通知</span>
+        </div>
+      </div>
+
+      <div class="module-card">
+        <div class="module-icon">🎯</div>
+        <div class="module-name">CEO 直接指派任務</div>
+        <div class="module-desc">繞過自動路由，CEO 直接指定哪個 Agent 做哪件事，系統自動檢查工作量上限。</div>
+        <div style="margin-top:1.2rem;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:1rem;font-family:var(--font-mono);font-size:0.72rem;color:var(--text-dim);line-height:1.7;">
+          POST /api/tasks/:id/assign<br>
+          {<br>
+          &nbsp;&nbsp;"agentId": "founding-eng",<br>
+          &nbsp;&nbsp;"note": "優先處理"<br>
+          }<br>
+          <span style="color:var(--accent);">→ 檢查 Agent 工作量</span><br>
+          <span style="color:var(--accent);">→ 記錄指派留言</span>
+        </div>
+      </div>
+
+      <div class="module-card">
+        <div class="module-icon">🏢</div>
+        <div class="module-name">組織架構圖</div>
+        <div class="module-desc">即時可視化公司組織，CEO 在頂端，直屬員工展開顯示，每個 Agent 的負載一目了然。</div>
+        <div style="margin-top:1.5rem;">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:0.5rem;font-size:0.8rem;">
+            <div style="background:rgba(255,184,0,0.1);border:1px solid rgba(255,184,0,0.3);border-radius:8px;padding:0.5rem 1.2rem;color:#ffb800;">👔 CEO</div>
+            <div style="width:1px;height:1rem;background:var(--border-bright);"></div>
+            <div style="display:flex;gap:0.8rem;">
+              <div style="background:rgba(0,255,170,0.06);border:1px solid var(--border-bright);border-radius:8px;padding:0.4rem 0.8rem;font-size:0.72rem;color:var(--text-dim);">🛠️ Eng</div>
+              <div style="background:rgba(0,255,170,0.06);border:1px solid var(--border-bright);border-radius:8px;padding:0.4rem 0.8rem;font-size:0.72rem;color:var(--text-dim);">📊 CFO</div>
+              <div style="background:rgba(0,255,170,0.06);border:1px solid var(--border-bright);border-radius:8px;padding:0.4rem 0.8rem;font-size:0.72rem;color:var(--text-dim);">🔍 SEO</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div style="margin-top:3rem;background:var(--surface);border:1px solid var(--border-bright);border-radius:12px;padding:2rem;display:flex;align-items:flex-start;gap:1.5rem;">
+      <div style="font-size:2rem;flex-shrink:0;">📋</div>
+      <div>
+        <div style="font-family:var(--font-display);font-weight:600;font-size:1rem;margin-bottom:0.5rem;color:var(--text);">每次雇用自動歸入公司檔案庫</div>
+        <div style="color:var(--text-dim);font-size:0.9rem;line-height:1.6;">每位新員工的職責描述、AI 生成的系統提示、入職日期，全部自動記錄進公司檔案庫（Archive），與董事會決議、目標完成記錄並排，形成完整的公司機構記憶。</div>
+      </div>
     </div>
 
   </div>
