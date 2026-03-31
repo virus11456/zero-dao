@@ -273,10 +273,8 @@ model TaskSequence {
 // GENESIS CONSTITUTION
 // =========================================================
 
-/**
- * BoardMember — tracks human board members for governance quorum calculation.
- * Each board member gets one vote (configurable weight).
- */
+// BoardMember — tracks human board members for governance quorum calculation.
+// Each board member gets one vote (configurable weight).
 model BoardMember {
   id          String   @id @default(uuid())
   userId      String   @unique  // external user ID (e.g. Paperclip userId)
@@ -417,10 +415,8 @@ model DistributionLineItem {
 // FINANCIAL ACCOUNTING (Double-Entry Bookkeeping)
 // =========================================================
 
-/**
- * Chart of Accounts — defines all financial accounts.
- * Uses standard accounting categories aligned with financial statements.
- */
+// Chart of Accounts — defines all financial accounts.
+// Uses standard accounting categories aligned with financial statements.
 
 enum AccountType {
   asset          // Balance Sheet: what we own (cash, AR, equipment)
@@ -448,10 +444,8 @@ model Account {
   @@index([code])
 }
 
-/**
- * Journal — each financial event. Uses double-entry: every transaction
- * has equal debits and credits.
- */
+// Journal — each financial event. Uses double-entry: every transaction
+// has equal debits and credits.
 
 enum JournalStatus {
   draft
@@ -477,11 +471,9 @@ model Journal {
   @@index([status])
 }
 
-/**
- * Journal Entry — one line in a journal (debit or credit).
- * Debit: increases assets/expenses; decreases liabilities/equity/revenue.
- * Credit: increases liabilities/equity/revenue; decreases assets/expenses.
- */
+// Journal Entry — one line in a journal (debit or credit).
+// Debit: increases assets/expenses; decreases liabilities/equity/revenue.
+// Credit: increases liabilities/equity/revenue; decreases assets/expenses.
 
 enum EntryType {
   debit
@@ -503,10 +495,8 @@ model JournalEntry {
   @@index([accountId])
 }
 
-/**
- * FinancialReport — cached/generated financial statements.
- * Regenerated on demand or on schedule.
- */
+// FinancialReport — cached/generated financial statements.
+// Regenerated on demand or on schedule.
 
 enum ReportType {
   income_statement   // 損益表 P&L
