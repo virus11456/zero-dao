@@ -1,0 +1,2101 @@
+<!DOCTYPE html>
+
+<html lang="zh-Hant">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Zero DAO — 零人全自動公司框架</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Noto+Sans+TC:wght@300;400;500;700;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+
+/* ═══════════════ RESET & VARS ═══════════════ */
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+
+  \--bg: #07080a;
+
+  \--bg2: #0d0f13;
+
+  \--bg3: #13161c;
+
+  \--surface: #1a1e27;
+
+  \--border: rgba(255,255,255,0.06);
+
+  \--border-bright: rgba(0,255,170,0.15);
+
+  \--text: #e8eaed;
+
+  \--text-dim: #8b92a0;
+
+  \--text-dimmer: #545c6d;
+
+  \--accent: #00ffaa;
+
+  \--accent2: #00d4ff;
+
+  \--accent3: #a78bfa;
+
+  \--danger: #ff5c5c;
+
+  \--warn: #ffb800;
+
+  \--font-body: 'Noto Sans TC', sans-serif;
+
+  \--font-mono: 'JetBrains Mono', monospace;
+
+  \--font-display: 'Space Grotesk', sans-serif;
+
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+
+  background: var(--bg);
+
+  color: var(--text);
+
+  font-family: var(--font-body);
+
+  line-height: 1.7;
+
+  overflow-x: hidden;
+
+  -webkit-font-smoothing: antialiased;
+
+}
+
+a { color: var(--accent); text-decoration: none; transition: all .2s; }
+
+a:hover { color: #fff; }
+
+/* ═══════════════ GLOBAL NOISE OVERLAY ═══════════════ */
+
+body::before {
+
+  content: '';
+
+  position: fixed;
+
+  inset: 0;
+
+  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+
+  pointer-events: none;
+
+  z-index: 9999;
+
+}
+
+/* ═══════════════ SCANLINE EFFECT ═══════════════ */
+
+body::after {
+
+  content: '';
+
+  position: fixed;
+
+  inset: 0;
+
+  background: repeating-linear-gradient(
+
+    0deg,
+
+    transparent,
+
+    transparent 2px,
+
+    rgba(0,0,0,0.03) 2px,
+
+    rgba(0,0,0,0.03) 4px
+
+  );
+
+  pointer-events: none;
+
+  z-index: 9998;
+
+}
+
+/* ═══════════════ NAV ═══════════════ */
+
+nav {
+
+  position: fixed;
+
+  top: 0;
+
+  left: 0;
+
+  right: 0;
+
+  z-index: 1000;
+
+  padding: 1rem 2rem;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  backdrop-filter: blur(20px) saturate(1.4);
+
+  background: rgba(7,8,10,0.7);
+
+  border-bottom: 1px solid var(--border);
+
+  transition: all .3s;
+
+}
+
+nav.scrolled { background: rgba(7,8,10,0.92); }
+
+.nav-logo {
+
+  font-family: var(--font-mono);
+
+  font-size: 1.1rem;
+
+  font-weight: 700;
+
+  color: var(--accent);
+
+  display: flex;
+
+  align-items: center;
+
+  gap: .5rem;
+
+}
+
+.nav-logo .zero { color: #fff; }
+
+.nav-links { display: flex; gap: 2rem; }
+
+.nav-links a {
+
+  font-family: var(--font-mono);
+
+  font-size: .75rem;
+
+  letter-spacing: .08em;
+
+  text-transform: uppercase;
+
+  color: var(--text-dim);
+
+  position: relative;
+
+}
+
+.nav-links a::after {
+
+  content: '';
+
+  position: absolute;
+
+  bottom: -4px;
+
+  left: 0;
+
+  width: 0;
+
+  height: 1px;
+
+  background: var(--accent);
+
+  transition: width .3s;
+
+}
+
+.nav-links a:hover { color: var(--accent); }
+
+.nav-links a:hover::after { width: 100%; }
+
+.nav-cta {
+
+  font-family: var(--font-mono);
+
+  font-size: .75rem;
+
+  padding: .5rem 1.2rem;
+
+  background: var(--accent);
+
+  color: var(--bg);
+
+  border-radius: 4px;
+
+  font-weight: 600;
+
+  letter-spacing: .05em;
+
+  transition: all .25s;
+
+}
+
+.nav-cta:hover { background: #fff; color: var(--bg); transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,255,170,0.3); }
+
+/* ═══════════════ HERO ═══════════════ */
+
+.hero {
+
+  min-height: 100vh;
+
+  display: flex;
+
+  flex-direction: column;
+
+  justify-content: center;
+
+  align-items: center;
+
+  text-align: center;
+
+  padding: 8rem 2rem 4rem;
+
+  position: relative;
+
+  overflow: hidden;
+
+}
+
+.hero-grid {
+
+  position: absolute;
+
+  inset: 0;
+
+  background-image:
+
+    linear-gradient(rgba(0,255,170,0.03) 1px, transparent 1px),
+
+    linear-gradient(90deg, rgba(0,255,170,0.03) 1px, transparent 1px);
+
+  background-size: 60px 60px;
+
+  mask-image: radial-gradient(ellipse 60% 50% at 50% 50%, black 20%, transparent 70%);
+
+}
+
+.hero-glow {
+
+  position: absolute;
+
+  width: 600px;
+
+  height: 600px;
+
+  background: radial-gradient(circle, rgba(0,255,170,0.08) 0%, transparent 70%);
+
+  top: 50%;
+
+  left: 50%;
+
+  transform: translate(-50%, -60%);
+
+  animation: glow-pulse 6s ease-in-out infinite;
+
+}
+
+@keyframes glow-pulse {
+
+  0%, 100% { opacity: 0.6; transform: translate(-50%, -60%) scale(1); }
+
+  50% { opacity: 1; transform: translate(-50%, -60%) scale(1.15); }
+
+}
+
+.hero-glow2 {
+
+  position: absolute;
+
+  width: 400px;
+
+  height: 400px;
+
+  background: radial-gradient(circle, rgba(0,212,255,0.06) 0%, transparent 70%);
+
+  top: 60%;
+
+  left: 30%;
+
+  transform: translate(-50%, -50%);
+
+  animation: glow-pulse 8s ease-in-out 2s infinite;
+
+}
+
+.hero-badge {
+
+  font-family: var(--font-mono);
+
+  font-size: .7rem;
+
+  letter-spacing: .15em;
+
+  text-transform: uppercase;
+
+  color: var(--accent);
+
+  border: 1px solid var(--border-bright);
+
+  padding: .4rem 1rem;
+
+  border-radius: 100px;
+
+  margin-bottom: 2rem;
+
+  position: relative;
+
+  z-index: 2;
+
+  animation: fadeUp .8s ease both;
+
+}
+
+.hero-badge::before {
+
+  content: '';
+
+  position: absolute;
+
+  inset: 0;
+
+  border-radius: 100px;
+
+  background: rgba(0,255,170,0.05);
+
+}
+
+.hero h1 {
+
+  font-family: var(--font-display);
+
+  font-size: clamp(3rem, 7vw, 6.5rem);
+
+  font-weight: 700;
+
+  line-height: 1.05;
+
+  letter-spacing: -0.03em;
+
+  margin-bottom: 1.5rem;
+
+  position: relative;
+
+  z-index: 2;
+
+  animation: fadeUp .8s ease .1s both;
+
+}
+
+.hero h1 .line2 {
+
+  display: block;
+
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 50%, var(--accent3) 100%);
+
+  -webkit-background-clip: text;
+
+  -webkit-text-fill-color: transparent;
+
+  background-clip: text;
+
+}
+
+.hero-sub {
+
+  font-size: 1.15rem;
+
+  color: var(--text-dim);
+
+  max-width: 580px;
+
+  margin-bottom: 3rem;
+
+  position: relative;
+
+  z-index: 2;
+
+  animation: fadeUp .8s ease .2s both;
+
+}
+
+.hero-actions {
+
+  display: flex;
+
+  gap: 1rem;
+
+  position: relative;
+
+  z-index: 2;
+
+  animation: fadeUp .8s ease .3s both;
+
+}
+
+.btn-primary {
+
+  font-family: var(--font-mono);
+
+  font-size: .85rem;
+
+  font-weight: 600;
+
+  padding: .8rem 2rem;
+
+  background: var(--accent);
+
+  color: var(--bg);
+
+  border: none;
+
+  border-radius: 6px;
+
+  cursor: pointer;
+
+  display: inline-flex;
+
+  align-items: center;
+
+  gap: .5rem;
+
+  transition: all .25s;
+
+}
+
+.btn-primary:hover { background: #fff; transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,255,170,0.25); color: var(--bg); }
+
+.btn-secondary {
+
+  font-family: var(--font-mono);
+
+  font-size: .85rem;
+
+  font-weight: 500;
+
+  padding: .8rem 2rem;
+
+  background: transparent;
+
+  color: var(--text);
+
+  border: 1px solid var(--border);
+
+  border-radius: 6px;
+
+  cursor: pointer;
+
+  display: inline-flex;
+
+  align-items: center;
+
+  gap: .5rem;
+
+  transition: all .25s;
+
+}
+
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-2px); }
+
+.hero-terminal {
+
+  margin-top: 4rem;
+
+  position: relative;
+
+  z-index: 2;
+
+  width: 100%;
+
+  max-width: 640px;
+
+  animation: fadeUp .8s ease .5s both;
+
+}
+
+.terminal-window {
+
+  background: var(--bg2);
+
+  border: 1px solid var(--border);
+
+  border-radius: 10px;
+
+  overflow: hidden;
+
+  box-shadow: 0 20px 80px rgba(0,0,0,0.5);
+
+}
+
+.terminal-bar {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 6px;
+
+  padding: .6rem 1rem;
+
+  background: var(--bg3);
+
+  border-bottom: 1px solid var(--border);
+
+}
+
+.terminal-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+.terminal-dot.r { background: #ff5f57; }
+
+.terminal-dot.y { background: #febc2e; }
+
+.terminal-dot.g { background: #28c840; }
+
+.terminal-bar span { margin-left: auto; font-family: var(--font-mono); font-size: .65rem; color: var(--text-dimmer); }
+
+.terminal-body {
+
+  padding: 1.2rem 1.5rem;
+
+  font-family: var(--font-mono);
+
+  font-size: .8rem;
+
+  line-height: 1.8;
+
+  color: var(--text-dim);
+
+}
+
+.terminal-body .prompt { color: var(--accent); }
+
+.terminal-body .cmd { color: #fff; }
+
+.terminal-body .comment { color: var(--text-dimmer); font-style: italic; }
+
+.terminal-body .output { color: var(--accent2); }
+
+@keyframes fadeUp {
+
+  from { opacity: 0; transform: translateY(20px); }
+
+  to { opacity: 1; transform: translateY(0); }
+
+}
+
+/* ═══════════════ SECTION COMMON ═══════════════ */
+
+section { padding: 6rem 2rem; position: relative; }
+
+.section-inner { max-width: 1100px; margin: 0 auto; }
+
+.section-label {
+
+  font-family: var(--font-mono);
+
+  font-size: .7rem;
+
+  letter-spacing: .2em;
+
+  text-transform: uppercase;
+
+  color: var(--accent);
+
+  margin-bottom: .8rem;
+
+}
+
+.section-title {
+
+  font-family: var(--font-display);
+
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
+
+  font-weight: 700;
+
+  letter-spacing: -0.02em;
+
+  margin-bottom: 1rem;
+
+}
+
+.section-desc {
+
+  color: var(--text-dim);
+
+  font-size: 1.05rem;
+
+  max-width: 600px;
+
+  margin-bottom: 3rem;
+
+}
+
+/* ═══════════════ CONCEPT (HOW IT WORKS) ═══════════════ */
+
+\#concept { background: var(--bg); }
+
+.concept-flow {
+
+  display: grid;
+
+  grid-template-columns: 1fr;
+
+  gap: 0;
+
+  position: relative;
+
+}
+
+.flow-step {
+
+  display: grid;
+
+  grid-template-columns: 60px 1fr;
+
+  gap: 1.5rem;
+
+  padding: 1.5rem 0;
+
+  position: relative;
+
+}
+
+.flow-num {
+
+  width: 48px;
+
+  height: 48px;
+
+  border: 1px solid var(--border-bright);
+
+  border-radius: 50%;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  font-family: var(--font-mono);
+
+  font-size: .85rem;
+
+  font-weight: 700;
+
+  color: var(--accent);
+
+  background: var(--bg);
+
+  position: relative;
+
+  z-index: 2;
+
+  flex-shrink: 0;
+
+}
+
+.flow-step:not(:last-child) .flow-num::after {
+
+  content: '';
+
+  position: absolute;
+
+  top: 48px;
+
+  left: 50%;
+
+  width: 1px;
+
+  height: calc(100% + 1.5rem);
+
+  background: linear-gradient(to bottom, var(--accent), transparent);
+
+  opacity: 0.2;
+
+}
+
+.flow-content h3 {
+
+  font-family: var(--font-display);
+
+  font-size: 1.15rem;
+
+  font-weight: 600;
+
+  margin-bottom: .3rem;
+
+}
+
+.flow-content p {
+
+  color: var(--text-dim);
+
+  font-size: .9rem;
+
+}
+
+.flow-tag {
+
+  display: inline-block;
+
+  font-family: var(--font-mono);
+
+  font-size: .65rem;
+
+  padding: .15rem .5rem;
+
+  border-radius: 3px;
+
+  margin-top: .4rem;
+
+  letter-spacing: .05em;
+
+}
+
+.flow-tag.auto { background: rgba(0,255,170,0.1); color: var(--accent); }
+
+.flow-tag.ai { background: rgba(0,212,255,0.1); color: var(--accent2); }
+
+.flow-tag.human { background: rgba(167,139,250,0.1); color: var(--accent3); }
+
+/* ═══════════════ MODULES ═══════════════ */
+
+\#modules { background: var(--bg2); }
+
+.modules-grid {
+
+  display: grid;
+
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+
+  gap: 1px;
+
+  background: var(--border);
+
+  border: 1px solid var(--border);
+
+  border-radius: 12px;
+
+  overflow: hidden;
+
+}
+
+.module-card {
+
+  background: var(--bg2);
+
+  padding: 1.8rem;
+
+  transition: all .3s;
+
+  position: relative;
+
+}
+
+.module-card::before {
+
+  content: '';
+
+  position: absolute;
+
+  top: 0;
+
+  left: 0;
+
+  width: 100%;
+
+  height: 2px;
+
+  background: linear-gradient(90deg, var(--accent), transparent);
+
+  opacity: 0;
+
+  transition: opacity .3s;
+
+}
+
+.module-card:hover { background: var(--bg3); }
+
+.module-card:hover::before { opacity: 1; }
+
+.module-icon {
+
+  font-size: 1.5rem;
+
+  margin-bottom: .8rem;
+
+}
+
+.module-card h3 {
+
+  font-family: var(--font-mono);
+
+  font-size: .9rem;
+
+  font-weight: 600;
+
+  margin-bottom: .4rem;
+
+}
+
+.module-card p {
+
+  color: var(--text-dim);
+
+  font-size: .82rem;
+
+  line-height: 1.5;
+
+}
+
+.module-trigger {
+
+  font-family: var(--font-mono);
+
+  font-size: .65rem;
+
+  color: var(--text-dimmer);
+
+  margin-top: .6rem;
+
+  display: flex;
+
+  align-items: center;
+
+  gap: .3rem;
+
+}
+
+.module-trigger::before {
+
+  content: '⏱';
+
+  font-size: .7rem;
+
+}
+
+/* ═══════════════ AGENTS ═══════════════ */
+
+\#agents { background: var(--bg); }
+
+.agents-row {
+
+  display: grid;
+
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+
+  gap: 1rem;
+
+}
+
+.agent-card {
+
+  background: var(--bg2);
+
+  border: 1px solid var(--border);
+
+  border-radius: 10px;
+
+  padding: 1.5rem;
+
+  text-align: center;
+
+  transition: all .3s;
+
+  position: relative;
+
+  overflow: hidden;
+
+}
+
+.agent-card::after {
+
+  content: '';
+
+  position: absolute;
+
+  bottom: 0;
+
+  left: 0;
+
+  right: 0;
+
+  height: 2px;
+
+  background: var(--accent);
+
+  transform: scaleX(0);
+
+  transition: transform .3s;
+
+}
+
+.agent-card:hover { border-color: var(--border-bright); transform: translateY(-4px); }
+
+.agent-card:hover::after { transform: scaleX(1); }
+
+.agent-avatar {
+
+  width: 56px;
+
+  height: 56px;
+
+  border-radius: 50%;
+
+  margin: 0 auto .8rem;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  font-size: 1.4rem;
+
+  background: var(--bg3);
+
+  border: 1px solid var(--border);
+
+}
+
+.agent-card h3 {
+
+  font-family: var(--font-display);
+
+  font-size: .95rem;
+
+  font-weight: 600;
+
+  margin-bottom: .2rem;
+
+}
+
+.agent-role {
+
+  font-family: var(--font-mono);
+
+  font-size: .7rem;
+
+  color: var(--text-dim);
+
+  margin-bottom: .6rem;
+
+}
+
+.agent-skills {
+
+  display: flex;
+
+  flex-wrap: wrap;
+
+  gap: 4px;
+
+  justify-content: center;
+
+}
+
+.agent-skill {
+
+  font-family: var(--font-mono);
+
+  font-size: .6rem;
+
+  padding: .15rem .4rem;
+
+  background: rgba(0,255,170,0.06);
+
+  border: 1px solid rgba(0,255,170,0.1);
+
+  border-radius: 3px;
+
+  color: var(--text-dim);
+
+}
+
+/* ═══════════════ CONSTITUTION ═══════════════ */
+
+\#constitution { background: var(--bg2); }
+
+.constitution-grid {
+
+  display: grid;
+
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+
+  gap: 1rem;
+
+}
+
+.const-card {
+
+  background: var(--bg);
+
+  border: 1px solid var(--border);
+
+  border-radius: 8px;
+
+  padding: 1.3rem;
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 1rem;
+
+  transition: all .3s;
+
+}
+
+.const-card:hover { border-color: var(--border-bright); }
+
+.const-value {
+
+  font-family: var(--font-mono);
+
+  font-size: 1.8rem;
+
+  font-weight: 700;
+
+  color: var(--accent);
+
+  flex-shrink: 0;
+
+  width: 70px;
+
+  text-align: right;
+
+}
+
+.const-info h4 {
+
+  font-family: var(--font-display);
+
+  font-size: .9rem;
+
+  font-weight: 600;
+
+}
+
+.const-info p {
+
+  font-size: .75rem;
+
+  color: var(--text-dim);
+
+  margin-top: .1rem;
+
+}
+
+/* ═══════════════ ARCHITECTURE ═══════════════ */
+
+\#architecture { background: var(--bg); }
+
+.arch-diagram {
+
+  background: var(--bg2);
+
+  border: 1px solid var(--border);
+
+  border-radius: 12px;
+
+  padding: 2.5rem;
+
+  font-family: var(--font-mono);
+
+  font-size: .78rem;
+
+  line-height: 1.5;
+
+  overflow-x: auto;
+
+  position: relative;
+
+}
+
+.arch-diagram pre {
+
+  color: var(--text-dim);
+
+  white-space: pre;
+
+}
+
+.arch-diagram .hl { color: var(--accent); font-weight: 600; }
+
+.arch-diagram .hl2 { color: var(--accent2); }
+
+.arch-diagram .hl3 { color: var(--accent3); }
+
+/* ═══════════════ TECH STACK ═══════════════ */
+
+\#stack { background: var(--bg2); }
+
+.stack-row {
+
+  display: flex;
+
+  flex-wrap: wrap;
+
+  gap: .6rem;
+
+}
+
+.stack-chip {
+
+  font-family: var(--font-mono);
+
+  font-size: .75rem;
+
+  padding: .5rem 1rem;
+
+  background: var(--bg);
+
+  border: 1px solid var(--border);
+
+  border-radius: 6px;
+
+  color: var(--text-dim);
+
+  transition: all .3s;
+
+  display: flex;
+
+  align-items: center;
+
+  gap: .4rem;
+
+}
+
+.stack-chip:hover { border-color: var(--accent); color: var(--accent); }
+
+.stack-chip .dot {
+
+  width: 6px;
+
+  height: 6px;
+
+  border-radius: 50%;
+
+}
+
+.stack-chip .dot.green { background: var(--accent); }
+
+.stack-chip .dot.blue { background: var(--accent2); }
+
+.stack-chip .dot.purple { background: var(--accent3); }
+
+.stack-chip .dot.yellow { background: var(--warn); }
+
+/* ═══════════════ CTA ═══════════════ */
+
+\#cta {
+
+  background: var(--bg);
+
+  text-align: center;
+
+  padding: 8rem 2rem;
+
+  position: relative;
+
+}
+
+\#cta .cta-glow {
+
+  position: absolute;
+
+  top: 50%;
+
+  left: 50%;
+
+  transform: translate(-50%, -50%);
+
+  width: 500px;
+
+  height: 300px;
+
+  background: radial-gradient(ellipse, rgba(0,255,170,0.06) 0%, transparent 70%);
+
+}
+
+\#cta .section-title { max-width: 700px; margin: 0 auto 1rem; }
+
+\#cta .section-desc { max-width: 500px; margin: 0 auto 2.5rem; }
+
+/* ═══════════════ FOOTER ═══════════════ */
+
+footer {
+
+  border-top: 1px solid var(--border);
+
+  padding: 2rem;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  font-family: var(--font-mono);
+
+  font-size: .7rem;
+
+  color: var(--text-dimmer);
+
+}
+
+footer a { color: var(--text-dim); }
+
+/* ═══════════════ SCROLL REVEAL ═══════════════ */
+
+.reveal {
+
+  opacity: 0;
+
+  transform: translateY(30px);
+
+  transition: all .7s cubic-bezier(0.16, 1, 0.3, 1);
+
+}
+
+.reveal.visible {
+
+  opacity: 1;
+
+  transform: translateY(0);
+
+}
+
+/* ═══════════════ RESPONSIVE ═══════════════ */
+
+@media (max-width: 768px) {
+
+  nav { padding: .8rem 1rem; }
+
+  .nav-links { display: none; }
+
+  .hero { padding: 7rem 1.2rem 3rem; }
+
+  .hero h1 { font-size: 2.5rem; }
+
+  section { padding: 4rem 1.2rem; }
+
+  .modules-grid { grid-template-columns: 1fr; }
+
+  .agents-row { grid-template-columns: repeat(2, 1fr); }
+
+  .constitution-grid { grid-template-columns: 1fr; }
+
+  .arch-diagram { padding: 1.2rem; font-size: .65rem; }
+
+  footer { flex-direction: column; gap: .5rem; text-align: center; }
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<!-- ═══════════════ NAV ═══════════════ -->
+
+<nav id="navbar">
+
+  <div class="nav-logo"><span class="zero">ZERO</span>\_DAO</div>
+
+  <div class="nav-links">
+
+    <a href="#concept">運作原理</a>
+
+    <a href="#modules">核心模組</a>
+
+    <a href="#agents">AI Agents</a>
+
+    <a href="#constitution">創世法規</a>
+
+    <a href="#stack">技術棧</a>
+
+  </div>
+
+  <a href="https://github.com/virus11456/zero-dao" target="\_blank" class="nav-cta">GitHub →</a>
+
+</nav>
+
+<!-- ═══════════════ HERO ═══════════════ -->
+
+<section class="hero">
+
+  <div class="hero-grid"></div>
+
+  <div class="hero-glow"></div>
+
+  <div class="hero-glow2"></div>
+
+  <div class="hero-badge">v0.8 · Decentralized Autonomous Organization</div>
+
+  <h1>
+
+    零人公司
+
+    <span class="line2">全自動運作</span>
+
+  </h1>
+
+  <p class="hero-sub">你只需要定義目標。AI 自動拆解、分配、執行、自愈、歸檔。<br>公司自己運作，你只管喝咖啡。</p>
+
+  <div class="hero-actions">
+
+    <a href="https://github.com/virus11456/zero-dao" target="\_blank" class="btn-primary">⚡ Clone & Deploy</a>
+
+    <a href="https://zero-dao-two.vercel.app" target="\_blank" class="btn-secondary">📊 Live Dashboard</a>
+
+  </div>
+
+  <div class="hero-terminal">
+
+    <div class="terminal-window">
+
+      <div class="terminal-bar">
+
+        <div class="terminal-dot r"></div>
+
+        <div class="terminal-dot y"></div>
+
+        <div class="terminal-dot g"></div>
+
+        <span>zero-dao — zsh</span>
+
+      </div>
+
+      <div class="terminal-body">
+
+        <div><span class="prompt">$</span> <span class="cmd">curl -X POST /api/goals -d '{"title":"建立 SEO 部落格"}'</span></div>
+
+        <div class="comment"># 你只需要這一步。接下來全部自動：</div>
+
+        <div class="output">✓ GoalDecomposer → 拆解為 4 個任務</div>
+
+        <div class="output">✓ TaskRouter → 分配給 SEO Expert</div>
+
+        <div class="output">✓ AgentRunner → Claude 開始執行</div>
+
+        <div class="output">✓ Telegram → 📲 通知你「目標已完成」</div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</section>
+
+<!-- ═══════════════ CONCEPT ═══════════════ -->
+
+<section id="concept">
+
+  <div class="section-inner reveal">
+
+    <div class="section-label">// How it works</div>
+
+    <div class="section-title">你做一件事，系統做所有事</div>
+
+    <div class="section-desc">從目標到交付，全部自動化。卡住了？系統自己修復。</div>
+
+    <div class="concept-flow">
+
+      <div class="flow-step">
+
+        <div class="flow-num">01</div>
+
+        <div class="flow-content">
+
+          <h3>定義目標</h3>
+
+          <p>你用自然語言描述你要什麼。一句話就夠。</p>
+
+          <span class="flow-tag human">👤 唯一需要你做的事</span>
+
+        </div>
+
+      </div>
+
+      <div class="flow-step">
+
+        <div class="flow-num">02</div>
+
+        <div class="flow-content">
+
+          <h3>AI 自動拆解</h3>
+
+          <p>GoalDecomposer 用 Claude 把目標拆成 milestone 和可執行任務。</p>
+
+          <span class="flow-tag ai">🧠 Claude Sonnet</span>
+
+        </div>
+
+      </div>
+
+      <div class="flow-step">
+
+        <div class="flow-num">03</div>
+
+        <div class="flow-content">
+
+          <h3>智能分配</h3>
+
+          <p>TaskRouter 根據 Agent 能力匹配與負載平衡，自動分配給最適合的 Agent。</p>
+
+          <span class="flow-tag auto">⚡ 每 5 分鐘</span>
+
+        </div>
+
+      </div>
+
+      <div class="flow-step">
+
+        <div class="flow-num">04</div>
+
+        <div class="flow-content">
+
+          <h3>Agent 執行</h3>
+
+          <p>Agent 帶入知識庫歷史經驗，Claude 驅動的心跳執行器持續推進任務。</p>
+
+          <span class="flow-tag ai">🧠 Knowledge-Augmented</span>
+
+        </div>
+
+      </div>
+
+      <div class="flow-step">
+
+        <div class="flow-num">05</div>
+
+        <div class="flow-content">
+
+          <h3>卡住？自愈</h3>
+
+          <p>AutonomousLoop 偵測到任務阻塞，自動產生替代策略並重新分配。</p>
+
+          <span class="flow-tag auto">⚡ 每 10 分鐘</span>
+
+        </div>
+
+      </div>
+
+      <div class="flow-step">
+
+        <div class="flow-num">06</div>
+
+        <div class="flow-content">
+
+          <h3>完成歸檔 & 通知</h3>
+
+          <p>目標完成後自動歸檔進公司檔案庫，Telegram 推播成果。你繼續喝咖啡。</p>
+
+          <span class="flow-tag auto">⚡ 自動觸發</span>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</section>
+
+<!-- ═══════════════ MODULES ═══════════════ -->
+
+<section id="modules">
+
+  <div class="section-inner reveal">
+
+    <div class="section-label">// Core Modules</div>
+
+    <div class="section-title">十大核心引擎</div>
+
+    <div class="section-desc">每個模組各司其職，自動協作，組成完整的無人公司。</div>
+
+    <div class="modules-grid">
+
+      <div class="module-card">
+
+        <div class="module-icon">🧠</div>
+
+        <h3>GoalDecomposer</h3>
+
+        <p>Claude 拆解目標 → milestone + 可執行任務</p>
+
+        <div class="module-trigger">新 Goal 建立時觸發</div>
+
+      </div>
+
+      <div class="module-card">
+
+        <div class="module-icon">🔄</div>
+
+        <h3>AutonomousLoop</h3>
+
+        <p>監控進度、偵測阻塞、自愈策略、完成歸檔</p>
+
+        <div class="module-trigger">每 10 分鐘</div>
+
+      </div>
+
+      <div class="module-card">
+
+        <div class="module-icon">🚦</div>
+
+        <h3>TaskRouter</h3>
+
+        <p>能力匹配 + 負載平衡，自動分配任務給最佳 Agent</p>
+
+        <div class="module-trigger">每 5 分鐘</div>
+
+      </div>
+
+      <div class="module-card">
+
+        <div class="module-icon">⚡</div>
+
+        <h3>AgentRunner</h3>
+
+        <p>Claude heartbeat 執行器 + 知識庫整合</p>
+
+        <div class="module-trigger">任務分配時</div>
+
+      </div>
+
+      <div class="module-card">
+
+        <div class="module-icon">📚</div>
+
+        <h3>KnowledgeBase</h3>
+
+        <p>從任務沉澱教訓，語意檢索，跨 Agent 共享經驗</p>
+
+        <div class="module-trigger">任務完成/失敗後</div>
+
+      </div>
+
+      <div class="module-card">
+
+        <div class="module-icon">🗳️</div>
+
+        <h3>GovernanceEngine</h3>
+
+        <p>提案投票結算，通過即自動執行並歸檔</p>
+
+        <div class="module-trigger">每小時</div>
+
+      </div>
+
+      <div class="module-card">
+
+        <div class="module-icon">💰</div>
+
+        <h3>ProfitDistributor</h3>
+
+        <p>收入進來自動按創世法規分配利潤</p>
+
+        <div class="module-trigger">收入記錄時</div>
+
+      </div>
+
+      <div class="module-card">
+
+        <div class="module-icon">📂</div>
+
+        <h3>ArchiveService</h3>
+
+        <p>決議、完成、事件全部自動歸檔，永久機構記憶</p>
+
+        <div class="module-trigger">關鍵事件發生時</div>
+
+      </div>
+
+      <div class="module-card">
+
+        <div class="module-icon">📒</div>
+
+        <h3>Ledger</h3>
+
+        <p>雙式記帳，借貸必須平衡，損益表/資產負債表/現金流量表</p>
+
+        <div class="module-trigger">財務事件時</div>
+
+      </div>
+
+      <div class="module-card">
+
+        <div class="module-icon">⏰</div>
+
+        <h3>Scheduler</h3>
+
+        <p>所有 cron 驅動的定時邏輯，從 5 分鐘到月報</p>
+
+        <div class="module-trigger">持續運行</div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</section>
+
+<!-- ═══════════════ AGENTS ═══════════════ -->
+
+<section id="agents">
+
+  <div class="section-inner reveal">
+
+    <div class="section-label">// AI Workforce</div>
+
+    <div class="section-title">5 位 AI 員工，全年無休</div>
+
+    <div class="section-desc">每位 Agent 由 Claude Sonnet 驅動，帶有獨立知識庫與學習能力。</div>
+
+    <div class="agents-row">
+
+      <div class="agent-card">
+
+        <div class="agent-avatar">👔</div>
+
+        <h3>CEO</h3>
+
+        <div class="agent-role">策略 / 委派</div>
+
+        <div class="agent-skills">
+
+          <span class="agent-skill">strategy</span>
+
+          <span class="agent-skill">delegation</span>
+
+          <span class="agent-skill">planning</span>
+
+        </div>
+
+      </div>
+
+      <div class="agent-card">
+
+        <div class="agent-avatar">🛠️</div>
+
+        <h3>Founding Eng</h3>
+
+        <div class="agent-role">全端工程</div>
+
+        <div class="agent-skills">
+
+          <span class="agent-skill">typescript</span>
+
+          <span class="agent-skill">react</span>
+
+          <span class="agent-skill">prisma</span>
+
+          <span class="agent-skill">devops</span>
+
+        </div>
+
+      </div>
+
+      <div class="agent-card">
+
+        <div class="agent-avatar">⚙️</div>
+
+        <h3>Backend Eng</h3>
+
+        <div class="agent-role">後端 / Python</div>
+
+        <div class="agent-skills">
+
+          <span class="agent-skill">python</span>
+
+          <span class="agent-skill">fastapi</span>
+
+          <span class="agent-skill">postgresql</span>
+
+        </div>
+
+      </div>
+
+      <div class="agent-card">
+
+        <div class="agent-avatar">📈</div>
+
+        <h3>SEO Expert</h3>
+
+        <div class="agent-role">內容行銷</div>
+
+        <div class="agent-skills">
+
+          <span class="agent-skill">seo</span>
+
+          <span class="agent-skill">content</span>
+
+          <span class="agent-skill">analytics</span>
+
+        </div>
+
+      </div>
+
+      <div class="agent-card">
+
+        <div class="agent-avatar">💹</div>
+
+        <h3>CFO</h3>
+
+        <div class="agent-role">財務管理</div>
+
+        <div class="agent-skills">
+
+          <span class="agent-skill">finance</span>
+
+          <span class="agent-skill">accounting</span>
+
+          <span class="agent-skill">reporting</span>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</section>
+
+<!-- ═══════════════ CONSTITUTION ═══════════════ -->
+
+<section id="constitution">
+
+  <div class="section-inner reveal">
+
+    <div class="section-label">// Genesis Constitution</div>
+
+    <div class="section-title">創世法規</div>
+
+    <div class="section-desc">公司啟動時自動建立，可透過治理提案修改。一切決策有法可依。</div>
+
+    <div class="constitution-grid">
+
+      <div class="const-card">
+
+        <div class="const-value">40%</div>
+
+        <div class="const-info">
+
+          <h4>利潤再投資</h4>
+
+          <p>reinvestment ratio</p>
+
+        </div>
+
+      </div>
+
+      <div class="const-card">
+
+        <div class="const-value">20%</div>
+
+        <div class="const-info">
+
+          <h4>儲備金</h4>
+
+          <p>reserve fund</p>
+
+        </div>
+
+      </div>
+
+      <div class="const-card">
+
+        <div class="const-value">40%</div>
+
+        <div class="const-info">
+
+          <h4>董事分紅</h4>
+
+          <p>board dividends</p>
+
+        </div>
+
+      </div>
+
+      <div class="const-card">
+
+        <div class="const-value">51%</div>
+
+        <div class="const-info">
+
+          <h4>投票門檻</h4>
+
+          <p>quorum & approval</p>
+
+        </div>
+
+      </div>
+
+      <div class="const-card">
+
+        <div class="const-value">72h</div>
+
+        <div class="const-info">
+
+          <h4>投票窗口</h4>
+
+          <p>voting window</p>
+
+        </div>
+
+      </div>
+
+      <div class="const-card">
+
+        <div class="const-value">10K</div>
+
+        <div class="const-info">
+
+          <h4>CEO 自主上限</h4>
+
+          <p>TWD / 月</p>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</section>
+
+<!-- ═══════════════ ARCHITECTURE ═══════════════ -->
+
+<section id="architecture">
+
+  <div class="section-inner reveal">
+
+    <div class="section-label">// System Architecture</div>
+
+    <div class="section-title">系統架構</div>
+
+    <div class="arch-diagram">
+
+<pre>
+
+  ┌─────────────────────────────────────────────────────────────┐
+
+  │                  <span class="hl3">Board（人類老闆）</span>                          │
+
+  │  定義目標 / 記錄收入 / 重大投票 / 查看看板                  │
+
+  │  Telegram + Web Dashboard + REST API                         │
+
+  └─────────────────────────────┬───────────────────────────────┘
+
+                                │
+
+  ┌─────────────────────────────▼───────────────────────────────┐
+
+  │                     <span class="hl">zero-dao Core</span>                           │
+
+  │                                                              │
+
+  │  <span class="hl2">AutonomousLoop</span>（每10分鐘）                                │
+
+  │   → GoalDecomposer 拆解 → 自愈 → 完成歸檔                  │
+
+  │                                                              │
+
+  │  <span class="hl2">TaskRouter</span>（每5分鐘）                                     │
+
+  │   → 能力匹配 + 負載平衡 → 自動分配                         │
+
+  │                                                              │
+
+  │  <span class="hl2">Agent Pool</span>（Claude Sonnet）                               │
+
+  │   CEO · Founding Eng · Backend Eng · SEO · CFO              │
+
+  │                                                              │
+
+  │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐        │
+
+  │  │<span class="hl">Governance</span>    │ │<span class="hl">Profit Dist.</span> │ │<span class="hl">Archive</span>      │        │
+
+  │  │提案投票結算  │ │利潤自動分配  │ │決策自動歸檔  │        │
+
+  │  └──────────────┘ └──────────────┘ └──────────────┘        │
+
+  │                                                              │
+
+  │  <span class="hl2">PostgreSQL（Prisma）· GitHub API · Telegram Bot</span>           │
+
+  └──────────────────────────────────────────────────────────────┘
+
+</pre>
+
+    </div>
+
+  </div>
+
+</section>
+
+<!-- ═══════════════ TECH STACK ═══════════════ -->
+
+<section id="stack">
+
+  <div class="section-inner reveal">
+
+    <div class="section-label">// Tech Stack</div>
+
+    <div class="section-title">技術棧</div>
+
+    <div class="stack-row">
+
+      <div class="stack-chip"><span class="dot green"></span>Node.js 20</div>
+
+      <div class="stack-chip"><span class="dot blue"></span>TypeScript</div>
+
+      <div class="stack-chip"><span class="dot purple"></span>Claude Sonnet</div>
+
+      <div class="stack-chip"><span class="dot green"></span>Prisma</div>
+
+      <div class="stack-chip"><span class="dot blue"></span>PostgreSQL</div>
+
+      <div class="stack-chip"><span class="dot yellow"></span>Express</div>
+
+      <div class="stack-chip"><span class="dot green"></span>Next.js 14</div>
+
+      <div class="stack-chip"><span class="dot blue"></span>Tailwind CSS</div>
+
+      <div class="stack-chip"><span class="dot purple"></span>SWR</div>
+
+      <div class="stack-chip"><span class="dot green"></span>Recharts</div>
+
+      <div class="stack-chip"><span class="dot yellow"></span>node-cron</div>
+
+      <div class="stack-chip"><span class="dot blue"></span>Octokit</div>
+
+      <div class="stack-chip"><span class="dot purple"></span>Telegram Bot API</div>
+
+      <div class="stack-chip"><span class="dot green"></span>Railway</div>
+
+      <div class="stack-chip"><span class="dot blue"></span>Vercel</div>
+
+    </div>
+
+  </div>
+
+</section>
+
+<!-- ═══════════════ CTA ═══════════════ -->
+
+<section id="cta">
+
+  <div class="cta-glow"></div>
+
+  <div class="section-inner reveal" style="position:relative;z-index:2;">
+
+    <div class="section-label">// Get Started</div>
+
+    <div class="section-title">開始你的零人公司</div>
+
+    <div class="section-desc">git clone → npm install → 定義目標 → 喝咖啡。就這麼簡單。</div>
+
+    <div class="hero-actions" style="justify-content:center;">
+
+      <a href="https://github.com/virus11456/zero-dao" target="\_blank" class="btn-primary">🚀 Clone on GitHub</a>
+
+      <a href="https://zero-dao-two.vercel.app" target="\_blank" class="btn-secondary">📊 看 Demo</a>
+
+    </div>
+
+  </div>
+
+</section>
+
+<!-- ═══════════════ FOOTER ═══════════════ -->
+
+<footer>
+
+  <span>zero-dao v0.8 · 零人全自動公司框架</span>
+
+  <span>Built with Claude · <a href="https://github.com/virus11456/zero-dao" target="\_blank">GitHub</a></span>
+
+</footer>
+
+<!-- ═══════════════ SCRIPTS ═══════════════ -->
+
+<script>
+
+// Nav scroll effect
+
+const nav = document.getElementById('navbar');
+
+window.addEventListener('scroll', () => {
+
+  nav.classList.toggle('scrolled', window.scrollY > 50);
+
+});
+
+// Scroll reveal
+
+const reveals = document.querySelectorAll('.reveal');
+
+const observer = new IntersectionObserver((entries) => {
+
+  entries.forEach(e => {
+
+    if (e.isIntersecting) {
+
+      e.target.classList.add('visible');
+
+    }
+
+  });
+
+}, { threshold: 0.15 });
+
+reveals.forEach(el => observer.observe(el));
+
+// Smooth anchor scroll
+
+document.querySelectorAll('a\[href^="#"]').forEach(a => {
+
+  a.addEventListener('click', e => {
+
+    e.preventDefault();
+
+    const target = document.querySelector(a.getAttribute('href'));
+
+    if (target) target.scrollIntoView({ behavior: 'smooth' });
+
+  });
+
+});
+
+</script>
+
+</body>
+
+</html>
