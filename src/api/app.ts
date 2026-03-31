@@ -273,21 +273,26 @@ export function createApp(): express.Express {
 
   // ── Dashboard ────────────────────────────────────────────────────────────────
   app.get('/api/dashboard', async (_req, res) => {
-    const [inProgress, blocked, done, todo, agents, activeGoals, completedGoals] = await Promise.all([
-      prisma.task.count({ where: { status: 'in_progress' } }),
-      prisma.task.count({ where: { status: 'blocked' } }),
-      prisma.task.count({ where: { status: 'done' } }),
-      prisma.task.count({ where: { status: 'todo' } }),
-      prisma.agent.groupBy({ by: ['status'], _count: true }),
-      prisma.goal.count({ where: { status: { in: ['active', 'planning'] } } }),
-      prisma.goal.count({ where: { status: 'completed' } }),
-    ]);
+    try {
+      const [inProgress, blocked, done, todo, agents, activeGoals, completedGoals] = await Promise.all([
+        prisma.task.count({ where: { status: 'in_progress' } }),
+        prisma.task.count({ where: { status: 'blocked' } }),
+        prisma.task.count({ where: { status: 'done' } }),
+        prisma.task.count({ where: { status: 'todo' } }),
+        prisma.agent.groupBy({ by: ['status'], _count: { _all: true } }),
+        prisma.goal.count({ where: { status: { in: ['active', 'planning'] } } }),
+        prisma.goal.count({ where: { status: 'completed' } }),
+      ]);
 
-    res.json({
-      tasks: { inProgress, blocked, done, todo },
-      agents: Object.fromEntries(agents.map((a) => [a.status, a._count])),
-      goals: { active: activeGoals, completed: completedGoals },
-    });
+      res.json({
+        tasks: { inProgress, blocked, done, todo },
+        agents: Object.fromEntries(agents.map((a) => [a.status, a._count._all])),
+        goals: { active: activeGoals, completed: completedGoals },
+      });
+    } catch (err) {
+      console.error('[dashboard]', err);
+      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
   });
 
   // ── Error handler ────────────────────────────────────────────────────────────
