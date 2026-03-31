@@ -7,6 +7,7 @@ import { KnowledgeBase } from '../memory/knowledge-base';
 import { Ledger } from '../finance/ledger';
 import { FinancialReporter } from '../finance/reporter';
 import { ArchiveService } from '../archive/service';
+import { CEOHireService } from '../agents/hire-service';
 import { apiKeyAuth } from './auth';
 
 const prisma = new PrismaClient();
@@ -17,6 +18,7 @@ const knowledgeBase = new KnowledgeBase();
 const ledger = new Ledger();
 const reporter = new FinancialReporter();
 const archiveService = new ArchiveService();
+const hireService = new CEOHireService();
 
 export function createApp(): express.Express {
   const app = express();
@@ -112,9 +114,51 @@ export function createApp(): express.Express {
         _count: {
           select: { tasks: { where: { status: 'in_progress' } } },
         },
+        reportsTo: { select: { id: true, name: true } },
       },
     });
     res.json(agents);
+  });
+
+  // CEO hire workflow — AI generates system prompt + archives the decision
+  app.post('/api/agents/hire', async (req: Request, res: Response) => {
+    const { name, role, responsibilities, capabilities, maxParallelTasks, reportsToId } = req.body;
+    if (!name || !role || !responsibilities) {
+      return res.status(400).json({ error: 'name, role, and responsibilities are required' });
+    }
+    try {
+      const result = await hireService.hire({
+        name, role, responsibilities,
+        capabilities: capabilities || [],
+        maxParallelTasks,
+        reportsToId,
+      });
+      res.status(201).json(result);
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  // CEO directly assigns a task to a specific agent
+  app.post('/api/tasks/:id/assign', async (req: Request, res: Response) => {
+    const { agentId, note } = req.body;
+    if (!agentId) return res.status(400).json({ error: 'agentId is required' });
+    try {
+      await hireService.assignTask({ taskId: req.params.id, agentId, note });
+      const task = await prisma.task.findUnique({
+        where: { id: req.params.id },
+        include: { assignee: { select: { id: true, name: true } } },
+      });
+      res.json(task);
+    } catch (err) {
+      res.status(400).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  // Org chart — agents with reporting lines and task load
+  app.get('/api/agents/org', async (_req, res) => {
+    const team = await hireService.getTeam();
+    res.json(team);
   });
 
   app.post('/api/agents', async (req: Request, res: Response) => {

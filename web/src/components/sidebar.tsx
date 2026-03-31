@@ -8,6 +8,7 @@ const nav = [
   { href: '/',           label: '看板',   icon: '📊' },
   { href: '/goals',      label: '目標',   icon: '🎯' },
   { href: '/tasks',      label: '任務',   icon: '✅' },
+  { href: '/team',       label: '團隊',   icon: '👥' },
   { href: '/agents',     label: 'Agents', icon: '🤖' },
   { href: '/finance',    label: '財務',   icon: '💰' },
   { href: '/governance', label: '治理',   icon: '🗳️' },
