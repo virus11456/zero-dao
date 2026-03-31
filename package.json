@@ -12,7 +12,8 @@
     "studio": "prisma studio",
     "db:push": "prisma db push",
     "lint": "eslint src --ext .ts",
-    "format": "prettier --write src/**/*.ts"
+    "format": "prettier --write src/**/*.ts",
+    "demo:seed": "tsx prisma/demo-seed.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.30.0",
