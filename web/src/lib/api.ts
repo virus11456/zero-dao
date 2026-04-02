@@ -1,12 +1,14 @@
+import { getStoredApiKey } from './auth';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3200';
-const API_KEY = process.env.NEXT_PUBLIC_API_KEY || '';
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const apiKey = getStoredApiKey() || process.env.NEXT_PUBLIC_API_KEY || '';
   const res = await fetch(`${API_URL}${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
-      ...(API_KEY ? { Authorization: `Bearer ${API_KEY}` } : {}),
+      ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
       ...options?.headers,
     },
   });
