@@ -1,10 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { PrismaClient } from '@prisma/client';
 import { config } from '../config';
 import { ArchiveService } from '../archive/service';
 import { notify } from '../telegram/bot';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 const archive = new ArchiveService();
 
 export type AgentRole = 'engineer' | 'designer' | 'researcher' | 'marketing' | 'analyst' | 'ceo';

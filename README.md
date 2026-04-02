@@ -382,3 +382,18 @@ Agent 在每次任務後自動學習：
 ```
 
 這就是 zero-dao：你只管「要什麼」，我們管「怎麼做」。
+
+---
+
+## 已修復的 Bug（v0.8.1）
+
+| # | 嚴重度 | 問題 | 修復內容 |
+|---|--------|------|----------|
+| 1 | **嚴重** | PrismaClient 實例氾濫 — 15+ 個檔案各自 `new PrismaClient()`，會耗盡 DB 連線池 | 新增 `src/lib/prisma.ts` singleton，所有模組共用單一實例 |
+| 2 | **嚴重** | Task 編號衝突 — `app.ts` 用 `ZD-${seq.nextNum - 1}`，其他模組用 `ZD-${seq.nextNum}`，導致 UNIQUE 約束違規 | 統一為 `ZD-${seq.nextNum}`，所有入口點使用相同邏輯 |
+| 3 | **嚴重** | Express Error Handler 位置錯誤 — 註冊在 Knowledge/Finance/Archive 路由之前，後續路由錯誤不會被捕獲 | 移至所有路由之後（middleware chain 最末） |
+| 4 | **嚴重** | Async 路由無 error handling — Promise reject 時請求永遠 pending | 安裝 `express-async-errors`，自動捕獲所有 async route handler 錯誤 |
+| 5 | **中等** | API Key 比對有 timing attack 風險 — 使用 `!==` 比較字串 | 改用 `crypto.timingSafeEqual()` |
+| 6 | **中等** | 收入記錄不建立會計分錄 — `POST /api/income` 只建 IncomeEvent，損益表不反映 | 自動呼叫 `ledger.recordIncome()`（Dr Cash / Cr Revenue） |
+| 7 | **低** | Goal 指標從未更新 — `tasksCreated`、`tasksDone`、`selfHealCount` 欄位永遠為 0 | AutonomousLoop 中正確 increment 這些計數器 |
+| 8 | **低** | Knowledge API key race condition — `Date.now()` 呼叫兩次產生不同值 | 改為一次呼叫並重用 `resolvedKey` |

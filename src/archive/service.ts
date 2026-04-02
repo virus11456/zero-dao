@@ -1,8 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { PrismaClient } from '@prisma/client';
 import { config } from '../config';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 
 /**
  * ArchiveService — the company's institutional memory.

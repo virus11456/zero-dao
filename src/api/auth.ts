@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { timingSafeEqual } from 'crypto';
 
 /**
  * API key authentication middleware.
@@ -31,10 +32,20 @@ export function apiKeyAuth(req: Request, res: Response, next: NextFunction): voi
     providedKey = xApiKey;
   }
 
-  if (!providedKey || providedKey !== apiKey) {
+  if (!providedKey || !safeCompare(providedKey, apiKey)) {
     res.status(401).json({ error: 'Unauthorized — invalid or missing API key' });
     return;
   }
 
   next();
+}
+
+/** Timing-safe string comparison to prevent timing attacks */
+function safeCompare(a: string, b: string): boolean {
+  if (a.length !== b.length) {
+    // Still do a comparison to avoid leaking length info via timing
+    timingSafeEqual(Buffer.from(a), Buffer.from(a));
+    return false;
+  }
+  return timingSafeEqual(Buffer.from(a), Buffer.from(b));
 }

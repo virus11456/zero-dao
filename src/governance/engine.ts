@@ -1,8 +1,6 @@
-import { PrismaClient } from '@prisma/client';
 import { notify } from '../telegram/bot';
 import { ArchiveService } from '../archive/service';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 const archive = new ArchiveService();
 
 /**

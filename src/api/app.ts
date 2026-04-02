@@ -1,5 +1,5 @@
+import 'express-async-errors'; // Patches Express to catch async errors automatically
 import express, { Request, Response, NextFunction } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { TaskRouter } from '../tasks/router';
 import { GovernanceEngine } from '../governance/engine';
 import { ProfitDistributor } from '../governance/profit-distributor';
@@ -9,8 +9,7 @@ import { FinancialReporter } from '../finance/reporter';
 import { ArchiveService } from '../archive/service';
 import { CEOHireService } from '../agents/hire-service';
 import { apiKeyAuth } from './auth';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 const router = new TaskRouter();
 const governance = new GovernanceEngine();
 const profitDistributor = new ProfitDistributor();
@@ -19,6 +18,7 @@ const ledger = new Ledger();
 const reporter = new FinancialReporter();
 const archiveService = new ArchiveService();
 const hireService = new CEOHireService();
+
 
 export function createApp(): express.Express {
   const app = express();
@@ -68,15 +68,14 @@ export function createApp(): express.Express {
   app.post('/api/tasks', async (req: Request, res: Response) => {
     const { title, description, priority, projectId, parentId, labels } = req.body;
 
-    const seq = await prisma.taskSequence.upsert({
+    const seq = await prisma.taskSequence.update({
       where: { id: 'singleton' },
-      update: { nextNum: { increment: 1 } },
-      create: { id: 'singleton', nextNum: 2 },
+      data: { nextNum: { increment: 1 } },
     });
 
     const task = await prisma.task.create({
       data: {
-        identifier: `ZD-${seq.nextNum - 1}`,
+        identifier: `ZD-${seq.nextNum}`,
         title,
         description,
         priority: priority || 'medium',
@@ -304,12 +303,6 @@ export function createApp(): express.Express {
     }
   });
 
-  // ── Error handler ────────────────────────────────────────────────────────────
-  app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-    console.error('[API Error]', err);
-    res.status(500).json({ error: err.message });
-  });
-
   // ── Knowledge Base ────────────────────────────────────────────────────────────
   // List all knowledge facts (optionally filtered by agent or type)
   app.get('/api/knowledge', async (req, res) => {
@@ -345,16 +338,17 @@ export function createApp(): express.Express {
   // Manually store a knowledge fact for an agent
   app.post('/api/agents/:id/knowledge', async (req: Request, res: Response) => {
     const { type, key, title, body, tags } = req.body;
+    const resolvedKey = key || `manual-${Date.now()}`;
     await knowledgeBase.store({
       agentId: req.params.id,
       type,
-      key: key || `manual-${Date.now()}`,
+      key: resolvedKey,
       title,
       body,
       tags: tags || [],
     });
     const fact = await prisma.agentMemory.findUnique({
-      where: { agentId_key: { agentId: req.params.id, key: key || `manual-${Date.now()}` } },
+      where: { agentId_key: { agentId: req.params.id, key: resolvedKey } },
     });
     res.status(201).json(fact);
   });
@@ -486,7 +480,7 @@ export function createApp(): express.Express {
   });
 
   app.post('/api/income', async (req: Request, res: Response) => {
-    const { source, description, amountCents, currency, boardMemberIds } = req.body;
+    const { source, description, amountCents, currency, revenueAccountCode, boardMemberIds } = req.body;
 
     const income = await prisma.incomeEvent.create({
       data: {
@@ -496,6 +490,15 @@ export function createApp(): express.Express {
         currency: currency || 'TWD',
         recordedAt: new Date(),
       },
+    });
+
+    // Create double-entry journal: Dr Cash, Cr Revenue
+    await ledger.recordIncome({
+      amountCents,
+      revenueAccountCode: revenueAccountCode || '4009',
+      description: `${source}: ${description || 'Income'}`,
+      currency: currency || 'TWD',
+      incomeEventId: income.id,
     });
 
     // Auto-distribute immediately
@@ -733,6 +736,14 @@ export function createApp(): express.Express {
       }),
     ]);
     res.json({ total, byType: Object.fromEntries(byType.map((b) => [b.type, b._count])), recent });
+  });
+
+  // ── Error handler (must be LAST middleware) ──────────────────────────────────
+  app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+    console.error('[API Error]', err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
   return app;

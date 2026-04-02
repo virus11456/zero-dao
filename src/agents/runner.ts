@@ -1,10 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { PrismaClient } from '@prisma/client';
 import { config } from '../config';
 import { Task, Agent } from '@prisma/client';
 import { KnowledgeBase } from '../memory/knowledge-base';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 const kb = new KnowledgeBase();
 
 /**

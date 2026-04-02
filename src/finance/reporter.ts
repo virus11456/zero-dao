@@ -1,9 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { PrismaClient } from '@prisma/client';
 import { config } from '../config';
 import { Ledger } from './ledger';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 const ledger = new Ledger();
 
 /**

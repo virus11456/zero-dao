@@ -1,13 +1,11 @@
 import { CronJob } from 'cron';
-import { PrismaClient } from '@prisma/client';
 import { TaskRouter } from '../tasks/router';
 import { AutonomousLoop } from '../agents/autonomous-loop';
 import { GovernanceEngine } from '../governance/engine';
 import { FinancialReporter } from '../finance/reporter';
 import { Ledger } from '../finance/ledger';
 import { notify } from '../telegram/bot';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 const router = new TaskRouter();
 const autonomousLoop = new AutonomousLoop();
 const governanceEngine = new GovernanceEngine();
