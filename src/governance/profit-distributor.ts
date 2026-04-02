@@ -1,7 +1,5 @@
-import { PrismaClient } from '@prisma/client';
 import { notify } from '../telegram/bot';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 
 /**
  * ProfitDistributor — executes profit distribution per the active constitution.

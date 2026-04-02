@@ -1,10 +1,8 @@
 import TelegramBot from 'node-telegram-bot-api';
-import { PrismaClient } from '@prisma/client';
 import { config } from '../config';
 import { FinancialReporter } from '../finance/reporter';
 import { Ledger } from '../finance/ledger';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 const reporter = new FinancialReporter();
 const ledger = new Ledger();
 

@@ -1,7 +1,5 @@
-import { PrismaClient } from '@prisma/client';
 import { AgentRunner } from './runner';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 const runner = new AgentRunner();
 
 /**

@@ -1,9 +1,7 @@
-import { PrismaClient } from '@prisma/client';
 import { GoalDecomposer } from '../tasks/goal-decomposer';
 import { notify } from '../telegram/bot';
 import { ArchiveService } from '../archive/service';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 const decomposer = new GoalDecomposer();
 const archive = new ArchiveService();
 
@@ -77,7 +75,7 @@ export class AutonomousLoop {
 
       await prisma.goal.update({
         where: { id: goal.id },
-        data: { status: 'active' },
+        data: { status: 'active', tasksCreated: { increment: count } },
       });
 
       await notify(`🎯 *Goal activated*: ${goal.title}\n${count} tasks auto-generated and queued.`);
@@ -88,7 +86,7 @@ export class AutonomousLoop {
     if (done === total && total > 0) {
       await prisma.goal.update({
         where: { id: goal.id },
-        data: { status: 'completed', completedAt: new Date() },
+        data: { status: 'completed', completedAt: new Date(), tasksDone: done },
       });
 
       // Archive the goal completion
@@ -113,6 +111,11 @@ export class AutonomousLoop {
         goalDescription: `Goal is stuck. All ${blocked} tasks are blocked. Generate alternative approaches to make progress.\n${goal.description || ''}`,
         projectId: goal.projectId || undefined,
         existingTaskTitles: existingTitles,
+      });
+
+      await prisma.goal.update({
+        where: { id: goal.id },
+        data: { selfHealCount: { increment: 1 }, tasksCreated: { increment: count } },
       });
 
       await notify(
